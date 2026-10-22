@@ -136,7 +136,11 @@ button { cursor: pointer; }
 .book-lightbox-close:hover, .book-lightbox-close:focus-visible, .book-lightbox-nav:hover, .book-lightbox-nav:focus-visible { background: var(--color-olive); }
 .book-lightbox-prev:hover, .book-lightbox-prev:focus-visible { transform: translate(-3px, -50%); }
 .book-lightbox-next:hover, .book-lightbox-next:focus-visible { transform: translate(3px, -50%); }
-.book-detail-copy { padding-top: 12px; }
+.book-detail-copy { position: sticky; top: 115px; align-self: start; max-height: calc(100vh - 140px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 12px 18px 18px 0; }
+.book-detail-copy::-webkit-scrollbar { width: 6px; }
+.book-detail-copy::-webkit-scrollbar-track { background: transparent; }
+.book-detail-copy::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(155,148,47,.42); }
+.book-detail-copy::-webkit-scrollbar-thumb:hover { background: var(--color-olive); }
 .book-detail-kicker { margin: 0 0 16px; color: var(--color-olive); font-family: var(--font-display); font-size: 14px; letter-spacing: .5px; text-transform: uppercase; }
 .book-detail-copy h1 { max-width: 620px; margin: 0; font-family: var(--font-display); font-size: clamp(38px, 4vw, 58px); font-weight: 400; line-height: 1.06; letter-spacing: -.02em; }
 .book-detail-author { margin: 18px 0 28px; font-family: var(--font-caslon); font-size: 17px; font-style: italic; }
@@ -278,6 +282,7 @@ button { cursor: pointer; }
   .book-detail-breadcrumb { margin-bottom: 34px; }
   .book-detail-hero { gap: 32px; grid-template-columns: minmax(0, .82fr) minmax(0, 1fr); }
   .book-detail-cover-wrap { padding: 18px; }
+  .book-detail-copy { position: static; max-height: none; overflow: visible; padding: 0; }
   .book-detail-copy h1 { font-size: 38px; }
   .book-detail-section { margin-top: 60px; }
 }
