@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="0 0 1 1">
+  <filter id="highlight-lift" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+    <feColorMatrix
+      in="SourceGraphic"
+      type="matrix"
+      values="0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0"
+      result="luminance" />
+    <feComponentTransfer in="luminance" result="highlight-mask">
+      <feFuncA type="table" tableValues="0 0.02 0.08 0.18 0.3" />
+    </feComponentTransfer>
+    <feComponentTransfer in="SourceGraphic" result="lifted-source">
+      <feFuncR type="linear" slope="1.045" />
+      <feFuncG type="linear" slope="1.045" />
+      <feFuncB type="linear" slope="1.045" />
+    </feComponentTransfer>
+    <feComposite in="lifted-source" in2="highlight-mask" operator="in" result="highlight-layer" />
+    <feMerge>
+      <feMergeNode in="SourceGraphic" />
+      <feMergeNode in="highlight-layer" />
+    </feMerge>
+  </filter>
+  <filter id="footer-highlight-lift" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+    <feColorMatrix
+      in="SourceGraphic"
+      type="matrix"
+      values="0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0
+              0.2126 0.7152 0.0722 0 0"
+      result="luminance" />
+    <feComponentTransfer in="luminance" result="highlight-mask">
+      <feFuncA type="table" tableValues="0 0.03 0.12 0.28 0.48" />
+    </feComponentTransfer>
+    <feComponentTransfer in="SourceGraphic" result="lifted-source">
+      <feFuncR type="linear" slope="1.1" />
+      <feFuncG type="linear" slope="1.1" />
+      <feFuncB type="linear" slope="1.1" />
+    </feComponentTransfer>
+    <feComposite in="lifted-source" in2="highlight-mask" operator="in" result="highlight-layer" />
+    <feMerge>
+      <feMergeNode in="SourceGraphic" />
+      <feMergeNode in="highlight-layer" />
+    </feMerge>
+  </filter>
+</svg>
