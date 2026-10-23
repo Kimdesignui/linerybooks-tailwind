@@ -389,6 +389,9 @@ export function App() {
   const [cartCount, setCartCount] = useState(13)
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null)
   const previewCloseTimer = useRef<number | null>(null)
+  const sectionScrollLock = useRef(false)
+  const sectionScrollUnlockTimer = useRef<number | null>(null)
+  const touchStart = useRef<{ x: number; y: number; excluded: boolean } | null>(null)
 
   useEffect(() => {
     const syncRoute = () => setView(window.location.pathname === '/all-books' ? 'all-books' : 'home')
@@ -400,6 +403,77 @@ export function App() {
     document.body.classList.toggle('menu-open', menuOpen)
     return () => document.body.classList.remove('menu-open')
   }, [menuOpen])
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.toggle('home-page-scroll', view === 'home')
+    if (view !== 'home') return () => root.classList.remove('home-page-scroll')
+
+    const isExcludedTarget = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('.carousel-viewport, .mobile-menu, .shop-menu, .book-preview, .book-lightbox'))
+    const getSectionPositions = () => {
+      const headerHeight = Number.parseFloat(getComputedStyle(root).getPropertyValue('--header-height')) || 0
+      return [...document.querySelectorAll<HTMLElement>('.scroll-section')].map((section) => Math.max(0, window.scrollY + section.getBoundingClientRect().top - headerHeight))
+    }
+    const scrollToSection = (direction: 1 | -1) => {
+      if (sectionScrollLock.current || menuOpen || shopOpen || previewProduct) return false
+      const positions = getSectionPositions()
+      if (positions.length < 2) return false
+      const currentIndex = positions.reduce((index, position, sectionIndex) => position <= window.scrollY + 8 ? sectionIndex : index, 0)
+      const nextIndex = Math.min(positions.length - 1, Math.max(0, currentIndex + direction))
+      if (nextIndex === currentIndex) return false
+      sectionScrollLock.current = true
+      if (sectionScrollUnlockTimer.current !== null) window.clearTimeout(sectionScrollUnlockTimer.current)
+      sectionScrollUnlockTimer.current = window.setTimeout(() => { sectionScrollLock.current = false }, 780)
+      window.scrollTo({ top: positions[nextIndex], behavior: 'smooth' })
+      return true
+    }
+    const handleWheel = (event: WheelEvent) => {
+      if (isExcludedTarget(event.target) || Math.abs(event.deltaY) < Math.abs(event.deltaX) || Math.abs(event.deltaY) < 8) return
+      if (scrollToSection(event.deltaY > 0 ? 1 : -1)) event.preventDefault()
+    }
+    const handleTouchStart = (event: TouchEvent) => {
+      const touch = event.changedTouches[0]
+      if (!touch) return
+      touchStart.current = { x: touch.clientX, y: touch.clientY, excluded: isExcludedTarget(event.target) }
+    }
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!touchStart.current || touchStart.current.excluded) return
+      const touch = event.changedTouches[0]
+      if (!touch) return
+      const deltaX = touch.clientX - touchStart.current.x
+      const deltaY = touch.clientY - touchStart.current.y
+      if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) event.preventDefault()
+    }
+    const handleTouchEnd = (event: TouchEvent) => {
+      const start = touchStart.current
+      if (!start || start.excluded) {
+        touchStart.current = null
+        return
+      }
+      const touch = event.changedTouches[0]
+      if (!touch) return
+      const distance = touch.clientY - start.y
+      const horizontalDistance = touch.clientX - start.x
+      touchStart.current = null
+      if (Math.abs(distance) < 44 || Math.abs(distance) < Math.abs(horizontalDistance)) return
+      if (scrollToSection(distance < 0 ? 1 : -1)) event.preventDefault()
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+    window.addEventListener('touchend', handleTouchEnd, { passive: false })
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+      if (sectionScrollUnlockTimer.current !== null) window.clearTimeout(sectionScrollUnlockTimer.current)
+      sectionScrollLock.current = false
+      touchStart.current = null
+      root.classList.remove('home-page-scroll')
+    }
+  }, [menuOpen, previewProduct, shopOpen, view])
 
   const navigateTo = (path: string) => {
     if (window.location.pathname !== path) window.history.pushState({}, '', path)

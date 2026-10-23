@@ -234,8 +234,8 @@ button { cursor: pointer; }
 .footer-art-frame { min-width: 0; align-self: stretch; display: flex; align-items: flex-end; justify-content: center; }
 .footer-art { width: 100%; max-width: 100%; min-width: 0; max-height: 365px; object-fit: contain; filter: url('/assets/highlight-lift.svg#footer-highlight-lift'); }
 @media (max-width: 900px) {
-  html { scroll-snap-type: y mandatory; }
-  .scroll-section { scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: var(--header-height); }
+  html.home-page-scroll { scroll-snap-type: y mandatory; }
+  html.home-page-scroll .scroll-section { scroll-snap-align: start; scroll-snap-stop: always; scroll-margin-top: var(--header-height); }
   .book-preview { display: none; }
   :root { --header-height: 88px; }
   .site-header { height: var(--header-height); }
@@ -380,5 +380,5 @@ button { cursor: pointer; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .scroll-section { scroll-snap-stop: normal; }
+  .home-page-scroll .scroll-section { scroll-snap-stop: normal; }
 }
