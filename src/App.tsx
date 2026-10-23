@@ -192,7 +192,7 @@ function ProductCard({ product, onOpenDetail, onAddToCart, onPreview, onPreviewL
     <a className="product-card-link" href="#a" onClick={(event) => { event.preventDefault(); onOpenDetail(product) }}>
       <div className="product-surface">
         <div className="product-cover-wrap">
-          <img src={product.image} alt={product.title} className="product-cover" />
+          <img src={product.image} alt={product.title} className="product-cover" loading="lazy" decoding="async" />
           <div className="product-overlay">
             <div className="product-overlay-copy"><strong>{product.title}</strong><span>{product.author}</span><b>{product.price}</b></div>
             <div className="product-overlay-actions">
@@ -240,7 +240,7 @@ function Collection({ title, items, onOpenDetail, onAddToCart, onPreview, onPrev
     touchStart.current = null
   }
 
-  return <section className="collection" aria-labelledby={title.replaceAll(' ', '-')}>
+  return <section className="collection scroll-section" aria-labelledby={title.replaceAll(' ', '-')}>
     <RibbonTitle title={title} id={title.replaceAll(' ', '-')} />
     <div className="carousel-viewport" onWheel={handleWheel} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} aria-roledescription="carousel" aria-label={`${title} book carousel`}>
       <div className="carousel-track" data-slide={activeSlide}>
@@ -257,6 +257,7 @@ function BookDetail({ product, onBack }: { product: Product; onBack: () => void 
   const galleryImages = [product.image]
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
 
   useEffect(() => {
     if (!lightboxOpen) return undefined
@@ -278,7 +279,7 @@ function BookDetail({ product, onBack }: { product: Product; onBack: () => void 
           <span className="book-detail-zoom"><i className="bi bi-arrows-fullscreen" aria-hidden="true" /> View full image</span>
         </button>
         <div className="book-detail-thumbnails" aria-label="Book images">
-          {galleryImages.map((image, index) => <button key={image} className={`book-detail-thumbnail ${index === activeImage ? 'is-active' : ''}`} type="button" aria-label={`View image ${index + 1}`} onClick={() => setActiveImage(index)}><img src={image} alt="" /></button>)}
+          {galleryImages.map((image, index) => <button key={image} className={`book-detail-thumbnail ${index === activeImage ? 'is-active' : ''}`} type="button" aria-label={`View image ${index + 1}`} onClick={() => setActiveImage(index)}><img src={image} alt="" loading="lazy" decoding="async" /></button>)}
         </div>
       </div>
       <div className="book-detail-copy">
@@ -296,8 +297,14 @@ function BookDetail({ product, onBack }: { product: Product; onBack: () => void 
         <p className="book-detail-note">Available from Linery Bookstore</p>
         <section className="book-detail-inline-description" aria-labelledby="book-description-title">
           <h2 id="book-description-title">Description</h2>
-          <p>Explore a carefully selected title from the Linery collection, where thoughtful writing, distinctive voices and beautifully made books meet. This temporary product page follows the editorial structure of the reference bookstore layout.</p>
-          <p>Discover the ideas, stories and conversations inside this edition, and return to the shop to explore more books from our independent collection.</p>
+          <div id="book-description-copy" className={`book-description-content ${descriptionExpanded ? 'is-expanded' : ''}`}>
+            <p>Explore a carefully selected title from the Linery collection, where thoughtful writing, distinctive voices and beautifully made books meet. This temporary product page follows the editorial structure of the reference bookstore layout.</p>
+            <p>Discover the ideas, stories and conversations inside this edition, and return to the shop to explore more books from our independent collection.</p>
+          </div>
+          <button className="book-detail-read-more" type="button" aria-expanded={descriptionExpanded} aria-controls="book-description-copy" onClick={() => setDescriptionExpanded((expanded) => !expanded)}>
+            <span>{descriptionExpanded ? 'Read less' : 'Read more'}</span>
+            <i className={`bi bi-arrow-${descriptionExpanded ? 'up' : 'down'}`} aria-hidden="true" />
+          </button>
         </section>
       </div>
     </section>
@@ -333,7 +340,7 @@ function BookPreview({ product, onClose, onKeepOpen, onLeave, onOpenDetail }: { 
   const publisher = product.title.includes('Very Short') ? 'Oxford University Press' : 'Linery Books'
   return <aside className="book-preview" aria-label={`Quick preview: ${product.title}`} onMouseEnter={onKeepOpen} onMouseLeave={onLeave}>
     <div className="book-preview-header"><p>Quick preview</p><button type="button" aria-label="Close preview" onClick={onClose}>×</button></div>
-    <img className="book-preview-cover" src={product.image} alt={product.title} />
+      <img className="book-preview-cover" src={product.image} alt={product.title} loading="lazy" decoding="async" />
     <div className="book-preview-copy">
       <p className="book-preview-kicker">Linery Books</p>
       <h2>{product.title}</h2>
@@ -353,7 +360,7 @@ function BookPreview({ product, onClose, onKeepOpen, onLeave, onOpenDetail }: { 
 }
 
 function Footer() {
-  return <footer className="site-footer" id="about">
+  return <footer className="site-footer scroll-section" id="about">
     <div className="footer-copy">
       <h2>LINERY</h2>
       <p className="footer-quote">(pn.) /'lıməri/<br />a curated bookstore &amp; independent press, crafted in Hanoi</p>
@@ -369,7 +376,7 @@ function Footer() {
       </div>
     </div>
     <div className="footer-art-frame">
-      <img className="footer-art" src="/assets/footer-children.png" alt="Ba bạn nhỏ đang đọc sách" />
+      <img className="footer-art" src="/assets/footer-children.png" alt="Ba bạn nhỏ đang đọc sách" loading="lazy" decoding="async" />
     </div>
   </footer>
 }
@@ -455,7 +462,7 @@ export function App() {
     <MobileMenu isOpen={menuOpen} onShop={showHome} onAllBooks={showAllBooks} onAuthors={showAuthors} onClose={() => setMenuOpen(false)} />
     {previewProduct && <BookPreview product={previewProduct} onClose={closePreview} onKeepOpen={() => openPreview(previewProduct)} onLeave={schedulePreviewClose} onOpenDetail={showDetail} />}
     {view === 'authors' ? <AuthorsDirectory /> : view === 'all-books' ? <AllBooksPage onHome={showHome} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} /> : view === 'detail' ? <BookDetail product={selectedProduct ?? products[0]} onBack={showHome} /> : <main>
-      <section className="hero" aria-label="Linery bookstore illustration"><img src="/assets/hero-children.png" alt="Các em nhỏ cùng đọc sách trên nền đỏ" /></section>
+      <section className="hero scroll-section" aria-label="Linery bookstore illustration"><img src="/assets/hero-children.png" alt="Các em nhỏ cùng đọc sách trên nền đỏ" /></section>
       <div id="shop" className="collections">{sections.map(section => <Collection key={section.title} {...section} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} />)}</div>
     </main>}
     <Footer />
