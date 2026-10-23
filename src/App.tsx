@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type ElementType } from 'react'
+import { useEffect, useRef, useState, type ElementType, type FormEvent } from 'react'
 import { Menu } from 'lucide-react'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
 type Product = { image: string; title: string; author: string; price: string; categories: string[] }
-type View = 'home' | 'authors' | 'all-books' | 'detail'
+type View = 'home' | 'authors' | 'all-books' | 'search' | 'author' | 'detail'
 
 function RibbonTitle({ title, id, heading = false }: { title: string; id?: string; heading?: boolean }) {
   const Label = (heading ? 'h1' : 'span') as ElementType
@@ -22,6 +22,12 @@ const products: Product[] = [
   { image: '/assets/cover-derrida.png', title: 'Derrida: A Very Short Introduction', author: 'Simon Glendinning', price: '280.000₫', categories: ['Non-fiction', 'Literary Criticism'] },
   { image: '/assets/cover-black-folk.png', title: 'The Souls of Black Folk', author: 'W. E. B. Du Bois', price: '310.000₫', categories: ['Essays', 'History'] },
 ]
+
+const authorSlug = (author: string) => author.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')
+const getAuthorFromPath = (pathname: string) => {
+  const slug = pathname.startsWith('/authors/') ? pathname.split('/').pop() ?? '' : ''
+  return products.find((product) => authorSlug(product.author) === slug)?.author ?? ''
+}
 
 const sections = [
   { title: 'NEW & UPCOMING', items: products },
@@ -82,8 +88,9 @@ function ShopMenu({ onAllBooks }: { onAllBooks: () => void }) {
   </section>
 }
 
-function MobileMenu({ isOpen, onShop, onAllBooks, onAuthors, onClose }: { isOpen: boolean; onShop: () => void; onAllBooks: () => void; onAuthors: () => void; onClose: () => void }) {
+function MobileMenu({ isOpen, onShop, onAllBooks, onAuthors, onSearch, onClose }: { isOpen: boolean; onShop: () => void; onAllBooks: () => void; onAuthors: () => void; onSearch: (query: string) => void; onClose: () => void }) {
   const [openBranches, setOpenBranches] = useState<Record<string, boolean>>({ Books: true, Fiction: true, 'Non-fiction': true, 'Linery Press': true })
+  const [query, setQuery] = useState('')
   const toggleBranch = (label: string) => setOpenBranches((current) => ({ ...current, [label]: !current[label] }))
 
   return <aside className={`mobile-menu ${isOpen ? 'is-open' : ''}`} aria-label="Mobile navigation" aria-hidden={!isOpen}>
@@ -91,10 +98,10 @@ function MobileMenu({ isOpen, onShop, onAllBooks, onAuthors, onClose }: { isOpen
       <p className="mobile-menu-title">Menu</p>
       <button className="mobile-menu-close" aria-label="Close menu" onClick={onClose}>×</button>
     </div>
-    <label className="mobile-menu-search">
+    <form className="mobile-menu-search" onSubmit={(event) => { event.preventDefault(); onSearch(query) }}>
       <img src="/assets/icon-search.svg" alt="" aria-hidden="true" />
-      <input type="search" placeholder="Search books" aria-label="Search books" />
-    </label>
+      <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search books" aria-label="Search books" />
+    </form>
     <section className="mobile-menu-section" aria-labelledby="mobile-shop-heading">
       <h2 id="mobile-shop-heading" className="mobile-menu-section-title">Shop</h2>
       <button className="mobile-menu-item mobile-menu-level-0" onClick={onAllBooks}><span className="mobile-menu-text">View all books</span></button>
@@ -138,37 +145,99 @@ function AuthorsDirectory() {
   </main>
 }
 
+function AuthorProfile({ author, onBack, onOpenDetail, onAddToCart, onPreview, onPreviewLeave }: { author: string; onBack: () => void; onOpenDetail: (product: Product) => void; onAddToCart: (product: Product) => void; onPreview: (product: Product) => void; onPreviewLeave: () => void }) {
+  const authorBooks = products.filter((product) => product.author === author)
+
+  return <main className="author-page">
+    <div className="author-page-content">
+      <button className="author-back-link" type="button" onClick={onBack}>← Back to authors</button>
+      <section className="author-profile-hero" aria-labelledby="author-profile-title">
+        <div className="author-avatar" aria-hidden="true"><i className="bi bi-person-circle" /></div>
+        <div>
+          <p className="author-page-kicker">Author</p>
+          <h1 id="author-profile-title">{author}</h1>
+          <p className="author-profile-bio">{author} is part of the Linery catalogue, a curated selection of literary voices and essential works for curious readers.</p>
+        </div>
+      </section>
+      <section className="author-books" aria-labelledby="author-books-title">
+        <h2 id="author-books-title">Books by {author}</h2>
+        <div className="author-books-grid">{authorBooks.map((product) => <ProductCard key={product.title} product={product} onOpenDetail={onOpenDetail} onAddToCart={onAddToCart} onPreview={onPreview} onPreviewLeave={onPreviewLeave} />)}</div>
+      </section>
+    </div>
+  </main>
+}
+
 function AllBooksPage({ onHome, onOpenDetail, onAddToCart, onPreview, onPreviewLeave }: { onHome: () => void; onOpenDetail: (product: Product) => void; onAddToCart: (product: Product) => void; onPreview: (product: Product) => void; onPreviewLeave: () => void }) {
-  const rows = Array.from({ length: 5 }, (_, rowIndex) => products.map((product, productIndex) => ({
+  const allBooks = Array.from({ length: 5 }, (_, rowIndex) => products.map((product, productIndex) => ({
     ...product,
-    title: rowIndex === 0 ? product.title : product.title,
-    image: product.image,
     key: `${rowIndex}-${productIndex}-${product.title}`,
-  })))
+  }))).flat()
+  const [isCompactListing, setIsCompactListing] = useState(() => window.matchMedia('(max-width: 900px)').matches)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 900px)')
+    const handleMediaChange = () => {
+      setIsCompactListing(mediaQuery.matches)
+      setCurrentPage(1)
+    }
+    handleMediaChange()
+    mediaQuery.addEventListener('change', handleMediaChange)
+    return () => mediaQuery.removeEventListener('change', handleMediaChange)
+  }, [])
+
+  const pageSize = isCompactListing ? 16 : allBooks.length
+  const pageCount = Math.ceil(allBooks.length / pageSize)
+  const visibleBooks = allBooks.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return <main className="all-books-page">
     <div className="all-books-content">
-      <div className="all-books-hero"><img src="/assets/all-books-hero.png" alt="Children exploring a garden together" /></div>
+      <div className="all-books-hero"><picture><source srcSet="/assets/all-books-hero.webp" type="image/webp" /><img src="/assets/all-books-hero.png" alt="Children exploring a garden together" width="2560" height="866" fetchPriority="high" decoding="async" /></picture></div>
       <nav className="all-books-breadcrumb" aria-label="Breadcrumb"><a href="/#home" onClick={(event) => { event.preventDefault(); onHome() }}>Home</a><span aria-hidden="true">/</span><span>All Books</span></nav>
       <section className="all-books-panel" aria-labelledby="all-books-title">
         <RibbonTitle title="ALL BOOKS" id="all-books-title" heading />
-        <div className="all-books-grid">{rows.flat().map((product) => <ProductCard key={product.key} product={product} onOpenDetail={onOpenDetail} onAddToCart={onAddToCart} onPreview={onPreview} onPreviewLeave={onPreviewLeave} />)}</div>
+        <div className="all-books-grid">{visibleBooks.map((product) => <ProductCard key={product.key} product={product} onOpenDetail={onOpenDetail} onAddToCart={onAddToCart} onPreview={onPreview} onPreviewLeave={onPreviewLeave} />)}</div>
         <nav className="all-books-pagination" aria-label="All books pages">
-          <button type="button" aria-label="Previous page" disabled><i className="bi bi-chevron-left" aria-hidden="true" /></button>
-          <button type="button" className="is-current" aria-current="page">1</button>
-          <button type="button">2</button>
-          <button type="button">3</button>
-          <button type="button" aria-label="More pages">…</button>
-          <button type="button">7</button>
-          <button type="button" aria-label="Next page"><i className="bi bi-chevron-right" aria-hidden="true" /></button>
+          <button type="button" aria-label="Previous page" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}><i className="bi bi-chevron-left" aria-hidden="true" /></button>
+          {Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => <button key={page} type="button" className={page === currentPage ? 'is-current' : ''} aria-current={page === currentPage ? 'page' : undefined} onClick={() => setCurrentPage(page)}>{page}</button>)}
+          <button type="button" aria-label="Next page" disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}><i className="bi bi-chevron-right" aria-hidden="true" /></button>
         </nav>
       </section>
     </div>
   </main>
 }
 
-function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks, activeView, shopOpen }: { cartCount: number; onMenu: () => void; onShop: () => void; onShopHover: (open: boolean) => void; onAuthors: () => void; onAllBooks: () => void; activeView: View; shopOpen: boolean }) {
+function SearchResultsPage({ query, onOpenDetail, onAddToCart, onPreview, onPreviewLeave }: { query: string; onOpenDetail: (product: Product) => void; onAddToCart: (product: Product) => void; onPreview: (product: Product) => void; onPreviewLeave: () => void }) {
+  const normalizedQuery = query.trim().toLowerCase()
+  const results = products.filter((product) => [product.title, product.author, ...product.categories].some((value) => value.toLowerCase().includes(normalizedQuery)))
+  const hasQuery = normalizedQuery.length > 0
+
+  return <main className="search-page">
+    <div className="search-page-content">
+      <p className="search-page-kicker">Search</p>
+      <h1>Search results for <span>“{query || 'all books'}”</span></h1>
+      {hasQuery && results.length > 0 ? <>
+        <p className="search-page-summary">{results.length} {results.length === 1 ? 'book' : 'books'} found</p>
+        <div className="search-results-grid">{results.map((product) => <ProductCard key={product.title} product={product} onOpenDetail={onOpenDetail} onAddToCart={onAddToCart} onPreview={onPreview} onPreviewLeave={onPreviewLeave} />)}</div>
+      </> : <section className="search-empty" aria-live="polite">
+        <img src="/assets/icon-search.svg" alt="" aria-hidden="true" />
+        <h2>No books found</h2>
+        <p>We couldn’t find a book matching “{query}”. Try another title, author, or category.</p>
+      </section>}
+    </div>
+  </main>
+}
+
+function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks, onSearch, activeView, shopOpen }: { cartCount: number; onMenu: () => void; onShop: () => void; onShopHover: (open: boolean) => void; onAuthors: () => void; onAllBooks: () => void; onSearch: (query: string) => void; activeView: View; shopOpen: boolean }) {
   const [searchOpen, setSearchOpen] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!query.trim()) return
+    onSearch(query.trim())
+    setSearchOpen(false)
+  }
 
   return <header className="site-header" onMouseLeave={() => onShopHover(false)}>
     <div className="header-inner">
@@ -176,10 +245,10 @@ function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks,
       <nav className="desktop-nav" aria-label="Điều hướng chính"><button className={`nav-link ${activeView !== 'authors' ? 'is-active' : ''}`} onClick={onShop} onMouseEnter={() => onShopHover(true)} onFocus={() => onShopHover(true)} aria-current={activeView !== 'authors' ? 'page' : undefined} aria-expanded={shopOpen}>Shop</button><button className={`nav-link ${activeView === 'authors' ? 'is-active' : ''}`} onClick={onAuthors}>Authors</button></nav>
       <a className="brand" href="#top">LINERY BOOKSTORE</a>
       <div className="header-actions">
-        <div className={`search-control ${searchOpen ? 'is-open' : ''}`}>
+        <form className={`search-control ${searchOpen ? 'is-open' : ''}`} onSubmit={submitSearch}>
           <button className="search-toggle" type="button" aria-label="Tìm kiếm" aria-expanded={searchOpen} onClick={() => setSearchOpen((open) => !open)}><img src="/assets/icon-search.svg" alt="" /></button>
-          <input className="search-input" type="search" placeholder="Search books" aria-label="Search books" autoFocus={searchOpen} onKeyDown={(event) => { if (event.key === 'Escape') setSearchOpen(false) }} />
-        </div>
+          <input className="search-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search books" aria-label="Search books" autoFocus={searchOpen} onKeyDown={(event) => { if (event.key === 'Escape') setSearchOpen(false) }} />
+        </form>
         <a className="icon-button cart-button" href="#cart" aria-label={`Giỏ hàng, ${cartCount} sản phẩm`}><img src="/assets/icon-cart.svg" alt="" /><span>{cartCount}</span></a>
       </div>
     </div>
@@ -253,11 +322,13 @@ function Collection({ title, items, onOpenDetail, onAddToCart, onPreview, onPrev
   </section>
 }
 
-function BookDetail({ product, onBack }: { product: Product; onBack: () => void }) {
+function BookDetail({ product, onBack, onAuthor }: { product: Product; onBack: () => void; onAuthor: (author: string) => void }) {
   const galleryImages = [product.image]
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const [reviewFormOpen, setReviewFormOpen] = useState(false)
+  const [reviewSubmitted, setReviewSubmitted] = useState(false)
 
   useEffect(() => {
     if (!lightboxOpen) return undefined
@@ -309,8 +380,10 @@ function BookDetail({ product, onBack }: { product: Product; onBack: () => void 
       </div>
     </section>
     <section className="book-detail-section book-author-section">
-      <h2>About {product.author}</h2>
-      <p>{product.author} is part of the Linery catalogue, a curated selection of literary voices and essential works for curious readers.</p>
+      <div className="book-author-profile">
+        <button className="book-author-avatar" type="button" aria-label={`View ${product.author} author page`} onClick={() => onAuthor(product.author)}><i className="bi bi-person-circle" aria-hidden="true" /></button>
+        <div><h2>About <a href={`/authors/${product.author.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`} onClick={(event) => { event.preventDefault(); onAuthor(product.author) }}>{product.author}</a></h2><p>{product.author} is part of the Linery catalogue, a curated selection of literary voices and essential works for curious readers.</p></div>
+      </div>
     </section>
     <section className="book-detail-section book-reviews" aria-labelledby="reviews-title">
       <div className="book-reviews-heading">
@@ -318,8 +391,24 @@ function BookDetail({ product, onBack }: { product: Product; onBack: () => void 
           <h2 id="reviews-title">Book reviews</h2>
           <div className="book-rating-summary"><span className="book-rating-stars" aria-label="4.8 out of 5 stars">★★★★★</span><strong>4.8</strong><span>24 reviews</span></div>
         </div>
-        <button className="book-review-button" type="button">Write a review</button>
+        <button className="book-review-button" type="button" aria-expanded={reviewFormOpen} aria-controls="book-review-form" onClick={() => { setReviewFormOpen((open) => !open); setReviewSubmitted(false) }}>{reviewFormOpen ? 'Close review form' : 'Write a review'}</button>
       </div>
+      {reviewFormOpen && <form id="book-review-form" className="book-review-form" onSubmit={(event) => { event.preventDefault(); setReviewSubmitted(true) }}>
+        <h3>Share your thoughts</h3>
+        <div className="book-review-rating-field">
+          <span>Your rating</span>
+          <div className="book-review-rating-options" role="group" aria-label="Your rating">
+            {[5, 4, 3, 2, 1].map((rating) => <label key={rating}><input type="radio" name="rating" value={rating} defaultChecked={rating === 5} /><span aria-hidden="true">{'★'.repeat(rating)}</span><span className="sr-only">{rating} out of 5 stars</span></label>)}
+          </div>
+        </div>
+        <div className="book-review-form-grid">
+          <label>Name<input type="text" name="name" autoComplete="name" required /></label>
+          <label>Email<input type="email" name="email" autoComplete="email" required /></label>
+        </div>
+        <label className="book-review-message">Your review<textarea name="review" rows={4} required /></label>
+        <button className="book-review-submit" type="submit">Submit review</button>
+        {reviewSubmitted && <p className="book-review-success" role="status">Thank you — your review has been received.</p>}
+      </form>}
       <div className="book-review-card"><div className="book-rating-stars" aria-label="5 out of 5 stars">★★★★★</div><p className="book-review-title">A thoughtful, beautifully made edition</p><p className="book-review-meta">Linery reader · 2 weeks ago</p><p className="book-review-body">A memorable title with a careful presentation. The kind of book you want to return to and share.</p></div>
     </section>
     <section className="book-detail-section book-details-grid">
@@ -383,7 +472,9 @@ function Footer() {
 
 export function App() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [view, setView] = useState<View>(() => window.location.pathname === '/all-books' ? 'all-books' : 'home')
+  const [view, setView] = useState<View>(() => window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
+  const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get('query') ?? '')
+  const [selectedAuthor, setSelectedAuthor] = useState(() => getAuthorFromPath(window.location.pathname))
   const [shopOpen, setShopOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [cartCount, setCartCount] = useState(13)
@@ -394,7 +485,11 @@ export function App() {
   const touchStart = useRef<{ x: number; y: number; excluded: boolean } | null>(null)
 
   useEffect(() => {
-    const syncRoute = () => setView(window.location.pathname === '/all-books' ? 'all-books' : 'home')
+    const syncRoute = () => {
+      setSearchQuery(new URLSearchParams(window.location.search).get('query') ?? '')
+      setSelectedAuthor(getAuthorFromPath(window.location.pathname))
+      setView(window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
+    }
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
   }, [])
@@ -476,7 +571,7 @@ export function App() {
   }, [menuOpen, previewProduct, shopOpen, view])
 
   const navigateTo = (path: string) => {
-    if (window.location.pathname !== path) window.history.pushState({}, '', path)
+    if (`${window.location.pathname}${window.location.search}` !== path) window.history.pushState({}, '', path)
   }
 
   const showShop = () => {
@@ -506,6 +601,26 @@ export function App() {
     setMenuOpen(false)
   }
 
+  const showSearch = (query: string) => {
+    const trimmedQuery = query.trim()
+    if (!trimmedQuery) return
+    navigateTo(`/search?query=${encodeURIComponent(trimmedQuery)}`)
+    setSearchQuery(trimmedQuery)
+    setView('search')
+    setShopOpen(false)
+    setMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const showAuthor = (author: string) => {
+    navigateTo(`/authors/${authorSlug(author)}`)
+    setSelectedAuthor(author)
+    setView('author')
+    setShopOpen(false)
+    setMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const showDetail = (product: Product) => {
     if (previewCloseTimer.current !== null) window.clearTimeout(previewCloseTimer.current)
     setPreviewProduct(null)
@@ -531,11 +646,11 @@ export function App() {
   }
 
   return <div id="top" className="page-shell">
-    <Header cartCount={cartCount} onMenu={() => setMenuOpen(!menuOpen)} onShop={showShop} onShopHover={(open) => { if (view !== 'authors') setShopOpen(open) }} onAuthors={showAuthors} onAllBooks={showAllBooks} activeView={view} shopOpen={shopOpen} />
+    <Header cartCount={cartCount} onMenu={() => setMenuOpen(!menuOpen)} onShop={showShop} onShopHover={(open) => { if (view !== 'authors') setShopOpen(open) }} onAuthors={showAuthors} onAllBooks={showAllBooks} onSearch={showSearch} activeView={view} shopOpen={shopOpen} />
     <button className={`mobile-backdrop ${menuOpen ? 'is-open' : ''}`} aria-label="Close menu" aria-hidden={!menuOpen} onClick={() => setMenuOpen(false)} />
-    <MobileMenu isOpen={menuOpen} onShop={showHome} onAllBooks={showAllBooks} onAuthors={showAuthors} onClose={() => setMenuOpen(false)} />
+    <MobileMenu isOpen={menuOpen} onShop={showHome} onAllBooks={showAllBooks} onAuthors={showAuthors} onSearch={showSearch} onClose={() => setMenuOpen(false)} />
     {previewProduct && <BookPreview product={previewProduct} onClose={closePreview} onKeepOpen={() => openPreview(previewProduct)} onLeave={schedulePreviewClose} onOpenDetail={showDetail} />}
-    {view === 'authors' ? <AuthorsDirectory /> : view === 'all-books' ? <AllBooksPage onHome={showHome} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} /> : view === 'detail' ? <BookDetail product={selectedProduct ?? products[0]} onBack={showHome} /> : <main>
+    {view === 'authors' ? <AuthorsDirectory /> : view === 'all-books' ? <AllBooksPage onHome={showHome} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} /> : view === 'search' ? <SearchResultsPage query={searchQuery} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} /> : view === 'author' ? <AuthorProfile author={selectedAuthor || 'Edward W. Said'} onBack={showAuthors} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} /> : view === 'detail' ? <BookDetail product={selectedProduct ?? products[0]} onBack={showHome} onAuthor={showAuthor} /> : <main>
       <section className="hero scroll-section" aria-label="Linery bookstore illustration"><img src="/assets/hero-children.png" alt="Các em nhỏ cùng đọc sách trên nền đỏ" /></section>
       <div id="shop" className="collections">{sections.map(section => <Collection key={section.title} {...section} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} />)}</div>
     </main>}
