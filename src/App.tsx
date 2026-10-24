@@ -8,8 +8,8 @@ type ProductCardActions = { onOpenDetail: (product: Product) => void; onAddToCar
 const isEnhancedVariant = import.meta.env.VITE_LINERY_VARIANT === 'enhanced'
 type Language = 'en' | 'vi'
 const translations = {
-  en: { shop: 'Shop', authors: 'Authors', allBooks: 'View all books', news: 'News & Events', quickView: 'Quick view', search: 'Search books', login: 'Log in', wishlist: 'Wishlist', menu: 'Menu', close: 'Close', readArticle: 'Read article', viewAllNews: 'View all news', home: 'Home', chooseLanguage: 'Choose your language', followUs: 'Follow Us', originalPost: 'View the original post', fromShelf: 'From the shelf', bookNotes: 'Book notes', cart: 'Cart' },
-  vi: { shop: 'Cửa hàng', authors: 'Tác giả', allBooks: 'Xem tất cả sách', news: 'Tin tức & Sự kiện', quickView: 'Xem nhanh', search: 'Tìm sách', login: 'Đăng nhập', wishlist: 'Yêu thích', menu: 'Menu', close: 'Đóng', readArticle: 'Đọc bài viết', viewAllNews: 'Xem tất cả tin', home: 'Trang chủ', chooseLanguage: 'Chọn ngôn ngữ', followUs: 'Theo dõi chúng tôi', originalPost: 'Xem bài viết gốc', fromShelf: 'Từ kệ sách', bookNotes: 'Ghi chú sách', cart: 'Giỏ hàng' },
+  en: { shop: 'Shop', authors: 'Authors', allBooks: 'View all books', news: 'News & Events', quickView: 'Quick view', search: 'Search books', login: 'Log in', wishlist: 'Wishlist', menu: 'Menu', close: 'Close', readArticle: 'Read article', viewAllNews: 'View all', home: 'Home', chooseLanguage: 'Choose your language', followUs: 'Follow Us', originalPost: 'View the original post', fromShelf: 'From the shelf', bookNotes: 'Book notes', cart: 'Cart' },
+  vi: { shop: 'Cửa hàng', authors: 'Tác giả', allBooks: 'Xem tất cả sách', news: 'Tin tức & Sự kiện', quickView: 'Xem nhanh', search: 'Tìm sách', login: 'Đăng nhập', wishlist: 'Yêu thích', menu: 'Menu', close: 'Đóng', readArticle: 'Đọc bài viết', viewAllNews: 'Xem tất cả', home: 'Trang chủ', chooseLanguage: 'Chọn ngôn ngữ', followUs: 'Theo dõi chúng tôi', originalPost: 'Xem bài viết gốc', fromShelf: 'Từ kệ sách', bookNotes: 'Ghi chú sách', cart: 'Giỏ hàng' },
 } as const
 type TranslationSet = typeof translations.en | typeof translations.vi
 const LanguageContext = createContext<{ language: Language; setLanguage: (language: Language) => void; t: TranslationSet }>({ language: 'en', setLanguage: () => undefined, t: translations.en })
@@ -179,7 +179,6 @@ function MobileMenu({ isOpen, onShop, onAllBooks, onAuthors, onSearch, onClose }
         <a className="mobile-menu-icon" href="#wishlist" aria-label={t.wishlist}><i className="bi bi-heart" aria-hidden="true" /></a>
       </div>
     </div>
-    <div className="language-toggle mobile-language-toggle" aria-label="Language switcher"><button type="button" className={language === 'en' ? 'is-active' : ''} onClick={() => setLanguage('en')}>EN</button><span>/</span><button type="button" className={language === 'vi' ? 'is-active' : ''} onClick={() => setLanguage('vi')}>VI</button></div>
     <section className="mobile-menu-section" aria-labelledby="mobile-shop-heading">
       <h2 id="mobile-shop-heading" className="mobile-menu-section-title">{t.shop}</h2>
       <button className="mobile-menu-item mobile-menu-level-0" onClick={onAllBooks}><span className="mobile-menu-text">{t.allBooks}</span></button>
@@ -207,6 +206,13 @@ function MobileMenu({ isOpen, onShop, onAllBooks, onAuthors, onSearch, onClose }
       <h2 id="mobile-authors-heading" className="mobile-menu-section-title">{t.authors}</h2>
       <button className="mobile-menu-item mobile-menu-level-0" onClick={onAuthors}><span className="mobile-menu-text">Browse all authors</span><span aria-hidden="true">→</span></button>
     </section>
+    <div className="mobile-menu-language" aria-label="Choose language">
+      <span className="mobile-menu-section-title">Language</span>
+      <div className="mobile-menu-language-options">
+        <button type="button" className={language === 'en' ? 'is-active' : ''} aria-pressed={language === 'en'} onClick={() => setLanguage('en')}>EN</button>
+        <button type="button" className={language === 'vi' ? 'is-active' : ''} aria-pressed={language === 'vi'} onClick={() => setLanguage('vi')}>VI</button>
+      </div>
+    </div>
   </aside>
 }
 
@@ -266,7 +272,7 @@ function AuthorProfile({ author, onBack, ...actions }: { author: string; onBack:
           <p className="author-profile-bio">{author} is part of the Linery catalogue, a curated selection of literary voices and essential works for curious readers.</p>
         </div>
         <section className="author-books" aria-labelledby="author-books-title">
-          <div className="author-books-heading"><p>Selected works</p><h2 id="author-books-title">Books by {author}</h2></div>
+          <div className="author-books-heading"><h2 id="author-books-title">Selected works</h2></div>
           <div className="author-books-carousel">
             <button className="author-books-control" type="button" aria-label="Previous books" onClick={() => scrollBooks(-1)}><i className="bi bi-chevron-left" aria-hidden="true" /></button>
             <div className="author-books-grid" ref={booksTrack} onWheel={(event) => { const track = event.currentTarget; if (track.scrollWidth <= track.clientWidth) return; if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) { event.preventDefault(); track.scrollLeft += event.deltaY } }}>{authorBooks.map((product) => <ProductCard key={product.title} product={product} {...actions} />)}</div>
@@ -430,8 +436,6 @@ function ProductCard({ product, onOpenDetail, onAddToCart, onPreview, onPreviewL
 function Collection({ title, items, ...actions }: { title: string; items: Product[] } & ProductCardActions) {
   const [trackPosition, setTrackPosition] = useState(1)
   const [isJumping, setIsJumping] = useState(false)
-  const wheelLock = useRef(false)
-  const touchStart = useRef<number | null>(null)
   const slides = Array.from({ length: 4 }, (_, slideIndex) => items.map((_, index) => items[(index + slideIndex) % items.length]))
   const activeSlide = (trackPosition + slides.length - 1) % slides.length
   const renderedSlides = [slides[slides.length - 1], ...slides, slides[0]]
@@ -445,10 +449,6 @@ function Collection({ title, items, ...actions }: { title: string; items: Produc
     }, 760)
     return () => window.clearTimeout(resetTimer)
   }, [trackPosition, slides.length])
-
-  const moveSlide = (direction: 1 | -1) => {
-    setTrackPosition((current) => current + direction)
-  }
 
   useEffect(() => {
     const autoplay = window.setInterval(() => setTrackPosition((current) => current + 1), 5000)
@@ -471,29 +471,9 @@ function Collection({ title, items, ...actions }: { title: string; items: Produc
     }
   }
 
-  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    const distance = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
-    if (Math.abs(distance) < 12 || wheelLock.current) return
-    event.preventDefault()
-    wheelLock.current = true
-    moveSlide(distance > 0 ? 1 : -1)
-    window.setTimeout(() => { wheelLock.current = false }, 760)
-  }
-
-  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    touchStart.current = event.changedTouches[0]?.clientX ?? null
-  }
-
-  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (touchStart.current === null) return
-    const distance = (event.changedTouches[0]?.clientX ?? touchStart.current) - touchStart.current
-    if (Math.abs(distance) > 36) moveSlide(distance < 0 ? 1 : -1)
-    touchStart.current = null
-  }
-
   return <section className="collection scroll-section" aria-labelledby={title.replaceAll(' ', '-')}>
     <RibbonTitle title={title} id={title.replaceAll(' ', '-')} />
-    <div className="carousel-viewport" onWheel={handleWheel} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} aria-roledescription="carousel" aria-label={`${title} book carousel`}>
+    <div className="carousel-viewport" aria-roledescription="carousel" aria-label={`${title} book carousel`}>
       <div className={`carousel-track ${isJumping ? 'is-jumping' : ''}`} data-slide={trackPosition} onTransitionEnd={handleTransitionEnd}>
         {renderedSlides.map((slide, slideIndex) => <div className="carousel-slide" key={`${title}-slide-${slideIndex}-${slideIndex === 0 ? 'clone-start' : slideIndex === renderedSlides.length - 1 ? 'clone-end' : 'real'}`} aria-hidden={slideIndex === 0 || slideIndex === renderedSlides.length - 1 || slideIndex !== trackPosition}>
           <div className="product-grid">{slide.map((product, index) => <ProductCard key={`${title}-${slideIndex}-${index}`} product={product} {...actions} />)}</div>
@@ -508,12 +488,11 @@ function NewsSection({ onOpenNews, onOpenAllNews }: { onOpenNews: (item: NewsIte
   const { t, language } = useLanguage()
 
   return <section id="news" className="news-section" aria-labelledby="news-title">
-    <RibbonTitle title="NEWS" id="news-title" />
+    <RibbonTitle title="LINERY NEWS" id="news-title" />
     <div className="news-track" aria-label="Linery news">
       {newsItems.map((item) => { const copy = localizeNews(item, language); return <article className="news-card" key={item.title}>
         <button className="news-card-link" type="button" onClick={() => onOpenNews(item)}>
           <div className="news-card-image-wrap"><img className="news-card-image" src={item.image} alt={copy.title} loading="lazy" decoding="async" /></div>
-          <div className="news-card-copy"><p>{item.date === 'Book notes' ? t.bookNotes : t.fromShelf}</p><h3>{copy.title}</h3></div>
         </button>
       </article> })}
     </div>
@@ -545,10 +524,9 @@ function NewsDetailPage({ item, onBack }: { item: NewsItem; onBack: () => void }
   const copy = localizeNews(item, language)
   return <main className="news-detail-page">
     <div className="news-detail-content">
-      <Breadcrumb className="news-page-breadcrumb" label={t.news} current={item.title} onNavigate={onBack} />
       <article className="news-detail-card">
         <div className="news-detail-image-wrap"><img src={item.image} alt={copy.title} /></div>
-        <div className="news-detail-copy"><p className="news-detail-kicker">{item.date === 'Book notes' ? t.bookNotes : t.fromShelf}</p><h1>{copy.title}</h1><p className="news-detail-intro">{copy.excerpt}</p><div className="news-detail-body">{copy.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div><a className="news-source-link" href="https://www.instagram.com/linery_bookstore/" target="_blank" rel="noreferrer">{t.originalPost} <i className="bi bi-arrow-up-right" aria-hidden="true" /></a></div>
+        <div className="news-detail-copy"><Breadcrumb className="news-detail-breadcrumb" label={t.news} current={copy.title} onNavigate={onBack} /><p className="news-detail-kicker">{item.date === 'Book notes' ? t.bookNotes : t.fromShelf}</p><h1>{copy.title}</h1><p className="news-detail-intro">{copy.excerpt}</p><div className="news-detail-body">{copy.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div><a className="news-source-link" href="https://www.instagram.com/linery_bookstore/" target="_blank" rel="noreferrer">{t.originalPost} <i className="bi bi-arrow-up-right" aria-hidden="true" /></a></div>
       </article>
     </div>
   </main>
