@@ -652,6 +652,7 @@ function BookDetail({ product, onBack, onAuthor }: { product: Product; onBack: (
         <img className="book-lightbox-image" src={galleryImages[activeImage]} alt={product.title} />
         <button className="book-lightbox-close" type="button" aria-label="Close gallery" onClick={() => setLightboxOpen(false)}><i className="bi bi-x-lg" aria-hidden="true" /></button>
         {galleryImages.length > 1 && <><button className="book-lightbox-nav book-lightbox-prev" type="button" aria-label="Previous image" onClick={() => setActiveImage((current) => (current - 1 + galleryImages.length) % galleryImages.length)}><i className="bi bi-chevron-left" aria-hidden="true" /></button><button className="book-lightbox-nav book-lightbox-next" type="button" aria-label="Next image" onClick={() => setActiveImage((current) => (current + 1) % galleryImages.length)}><i className="bi bi-chevron-right" aria-hidden="true" /></button></>}
+        {galleryImages.length > 1 && <div className="book-lightbox-thumbnails" aria-label="Gallery images">{galleryImages.map((image, index) => <button key={image} className={`book-lightbox-thumbnail ${index === activeImage ? 'is-active' : ''}`} type="button" aria-label={`View image ${index + 1}`} onClick={() => setActiveImage(index)}><img src={image} alt="" /></button>)}</div>}
       </div>
     </div>}
   </main>
