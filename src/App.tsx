@@ -257,16 +257,38 @@ function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks,
 }
 
 function ProductCard({ product, onOpenDetail, onAddToCart, onPreview, onPreviewLeave }: { product: Product; onOpenDetail: (product: Product) => void; onAddToCart: (product: Product) => void; onPreview: (product: Product) => void; onPreviewLeave: () => void }) {
+  const [isWishlisted, setIsWishlisted] = useState(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('linery-wishlist') ?? '[]').includes(product.title)
+    } catch {
+      return false
+    }
+  })
+
+  const toggleWishlist = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    try {
+      const wishlist = JSON.parse(window.localStorage.getItem('linery-wishlist') ?? '[]') as string[]
+      const nextWishlist = isWishlisted ? wishlist.filter((title) => title !== product.title) : [...new Set([...wishlist, product.title])]
+      window.localStorage.setItem('linery-wishlist', JSON.stringify(nextWishlist))
+      setIsWishlisted(!isWishlisted)
+    } catch {
+      setIsWishlisted(!isWishlisted)
+    }
+  }
+
   return <article className="product-card" onMouseEnter={() => onPreview(product)} onMouseLeave={onPreviewLeave} onFocus={() => onPreview(product)}>
     <a className="product-card-link" href="#a" onClick={(event) => { event.preventDefault(); onOpenDetail(product) }}>
       <div className="product-surface">
         <div className="product-cover-wrap">
           <img src={product.image} alt={product.title} className="product-cover" loading="lazy" decoding="async" />
           <div className="product-overlay">
+            <button className={`product-wishlist ${isWishlisted ? 'is-active' : ''}`} type="button" aria-label={isWishlisted ? `Remove ${product.title} from wishlist` : `Add ${product.title} to wishlist`} aria-pressed={isWishlisted} onClick={toggleWishlist}><i className={`bi ${isWishlisted ? 'bi-heart-fill' : 'bi-heart'}`} aria-hidden="true" /></button>
             <div className="product-overlay-copy"><strong>{product.title}</strong><span>{product.author}</span><b>{product.price}</b></div>
             <div className="product-overlay-actions">
-              <span className="product-overlay-cta">Read more</span>
               <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onAddToCart(product) }}>Add to basket</button>
+              <span className="product-overlay-cta">Read more</span>
             </div>
           </div>
         </div>
