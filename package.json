@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:classic": "vite --mode classic --port 5173",
+    "dev:enhanced": "vite --mode enhanced --port 5174",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
