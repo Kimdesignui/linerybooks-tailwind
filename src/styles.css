@@ -260,7 +260,7 @@ button { cursor: pointer; }
 .product-card-link:hover .product-cover, .product-card-link:focus-visible .product-cover { transform: scale(1.04); }
 .product-card-link:hover .product-overlay, .product-card-link:focus-visible .product-overlay { opacity: 1; transform: translateY(0); }
 .product-card-link:hover .product-info h3, .product-card-link:focus-visible .product-info h3 { color: var(--color-olive); }
-.product-author { margin: 0; color: #999; font-size: 12px; font-style: italic; line-height: normal; white-space: nowrap; }
+.product-author { display: none; margin: 0; color: #999; font-size: 12px; font-style: italic; line-height: normal; white-space: nowrap; }
 .product-price { margin: 0; padding-top: 4px; color: var(--color-olive); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
 .pagination { width: 58px; height: 12px; display: flex; align-items: center; justify-content: space-between; margin: 12px auto 0; }
 .pagination button { flex: 0 0 10px; width: 10px; height: 10px; padding: 0; border: 1px solid rgba(155, 148, 47, 0.5); border-radius: 50%; background: transparent; }
