@@ -2,14 +2,14 @@ import { createContext, useContext, useEffect, useRef, useState, type ElementTyp
 import { Menu } from 'lucide-react'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
-type Product = { image: string; title: string; author: string; price: string; categories: string[] }
-type View = 'home' | 'authors' | 'all-books' | 'news' | 'news-detail' | 'search' | 'author' | 'detail'
+type Product = { image: string; gallery?: string[]; title: string; author: string; price: string; categories: string[]; available?: boolean }
+type View = 'home' | 'authors' | 'all-books' | 'news' | 'news-detail' | 'search' | 'author' | 'detail' | 'cart'
 type ProductCardActions = { onOpenDetail: (product: Product) => void; onAddToCart: (product: Product) => void; onPreview: (product: Product) => void; onPreviewLeave: () => void; onSelectQuickView: (product: Product) => void; quickViewOpen: boolean }
 const isEnhancedVariant = import.meta.env.VITE_LINERY_VARIANT === 'enhanced'
 type Language = 'en' | 'vi'
 const translations = {
-  en: { shop: 'Shop', authors: 'Authors', allBooks: 'View all books', news: 'News & Events', quickView: 'Quick view', search: 'Search books', login: 'Log in', wishlist: 'Wishlist', menu: 'Menu', close: 'Close', readArticle: 'Read article', viewAllNews: 'View all', home: 'Home', chooseLanguage: 'Choose your language', followUs: 'Follow Us', originalPost: 'View the original post', fromShelf: 'From the shelf', bookNotes: 'Book notes', cart: 'Cart' },
-  vi: { shop: 'Cửa hàng', authors: 'Tác giả', allBooks: 'Xem tất cả sách', news: 'Tin tức & Sự kiện', quickView: 'Xem nhanh', search: 'Tìm sách', login: 'Đăng nhập', wishlist: 'Yêu thích', menu: 'Menu', close: 'Đóng', readArticle: 'Đọc bài viết', viewAllNews: 'Xem tất cả', home: 'Trang chủ', chooseLanguage: 'Chọn ngôn ngữ', followUs: 'Theo dõi chúng tôi', originalPost: 'Xem bài viết gốc', fromShelf: 'Từ kệ sách', bookNotes: 'Ghi chú sách', cart: 'Giỏ hàng' },
+  en: { shop: 'Shop', authors: 'Authors', allBooks: 'View all books', news: 'News & Events', quickView: 'Quick view', search: 'Search books', login: 'Log in', wishlist: 'Wishlist', menu: 'Menu', close: 'Close', readArticle: 'Read article', viewAllNews: 'View all', home: 'Home', chooseLanguage: 'Choose your language', followUs: 'Follow Us', originalPost: 'View the original post', fromShelf: 'From the shelf', bookNotes: 'Book notes', cart: 'Cart', emptyCartKicker: 'YOUR BASKET', emptyCart: 'Your cart is empty', emptyCartMessage: 'There are no products in your cart.', continueShopping: 'Continue shopping' },
+  vi: { shop: 'Cửa hàng', authors: 'Tác giả', allBooks: 'Xem tất cả sách', news: 'Tin tức & Sự kiện', quickView: 'Xem nhanh', search: 'Tìm sách', login: 'Đăng nhập', wishlist: 'Yêu thích', menu: 'Menu', close: 'Đóng', readArticle: 'Đọc bài viết', viewAllNews: 'Xem tất cả', home: 'Trang chủ', chooseLanguage: 'Chọn ngôn ngữ', followUs: 'Theo dõi chúng tôi', originalPost: 'Xem bài viết gốc', fromShelf: 'Từ kệ sách', bookNotes: 'Ghi chú sách', cart: 'Giỏ hàng', emptyCartKicker: 'GIỎ HÀNG', emptyCart: 'Giỏ hàng của bạn đang trống', emptyCartMessage: 'Chưa có sản phẩm nào trong giỏ hàng.', continueShopping: 'Tiếp tục mua sắm' },
 } as const
 type TranslationSet = typeof translations.en | typeof translations.vi
 const LanguageContext = createContext<{ language: Language; setLanguage: (language: Language) => void; t: TranslationSet }>({ language: 'en', setLanguage: () => undefined, t: translations.en })
@@ -47,7 +47,7 @@ function RibbonTitle({ title, id, heading = false }: { title: string; id?: strin
 
 const products: Product[] = [
   { image: '/assets/cover-edward.png', title: 'Power, Politics, and Culture: Interviews with Edward W. Said', author: 'Edward W. Said', price: '460.000₫', categories: ['Essays', 'Literary Criticism'] },
-  { image: '/assets/cover-ethics.png', title: 'Ethics: A Very Short Introduction', author: 'Simon Blackburn', price: '460.000₫', categories: ['Non-fiction', 'Philosophy'] },
+  { image: '/assets/cover-ethics.png', title: 'Ethics: A Very Short Introduction', author: 'Simon Blackburn', price: '460.000₫', categories: ['Non-fiction', 'Philosophy'], available: false },
   { image: '/assets/cover-existentialism.png', title: 'Existentialism: A Very Short Introduction', author: 'Thomas R. Flynn', price: '460.000₫', categories: ['Non-fiction', 'Philosophy'] },
   { image: '/assets/cover-jung.png', title: 'Jung: A Very Short Introduction', author: 'Anthony Stevens', price: '460.000₫', categories: ['Non-fiction', 'Psychology'] },
   { image: '/assets/cover-derrida.png', title: 'Derrida: A Very Short Introduction', author: 'Simon Glendinning', price: '280.000₫', categories: ['Non-fiction', 'Literary Criticism'] },
@@ -141,8 +141,8 @@ const translatorColumns: MenuColumn[] = [
   { eyebrow: 'V', links: ['Saskia Vogel', 'Francesca Wade', 'Adrian Nathan West', 'Shaun Whiteside', 'Natasha Wimmer', 'Frank Wynne'] },
 ]
 
-function MenuColumns({ columns }: { columns: MenuColumn[] }) {
-  return <div className="menu-columns">{columns.map((column) => <div className="menu-column" key={column.eyebrow}><p className="menu-eyebrow">{column.eyebrow}</p>{column.links.map((link) => <a href="#directory" key={link}>{link}</a>)}</div>)}</div>
+function MenuColumns({ columns, onAuthor }: { columns: MenuColumn[]; onAuthor: (author: string) => void }) {
+  return <div className="menu-columns">{columns.map((column) => <div className="menu-column" key={column.eyebrow}><p className="menu-eyebrow">{column.eyebrow}</p>{column.links.map((link) => <a href={`/authors/${authorSlug(AUTHOR_DEMO_NAME)}`} key={link} onClick={(event) => { event.preventDefault(); onAuthor(link) }}>{link}</a>)}</div>)}</div>
 }
 
 function ShopMenu({ onAllBooks }: { onAllBooks: () => void }) {
@@ -224,16 +224,26 @@ function Breadcrumb({ label, current, onNavigate, className = '' }: { label: str
   </nav>
 }
 
-function AuthorsDirectory() {
+function AuthorsDirectory({ onAuthor }: { onAuthor: (author: string) => void }) {
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const filteredAuthorColumns = authorColumns
+    .map((column) => ({ ...column, links: column.links.filter((author) => author.toLocaleLowerCase().includes(normalizedQuery)) }))
+    .filter((column) => column.links.length > 0)
+  const hasResults = filteredAuthorColumns.length > 0
+
   return <main className="directory-page">
     <section className="directory-section" aria-labelledby="authors-title">
-      <p className="directory-kicker" id="authors-title">Authors</p>
-      <div className="directory-grid"><MenuColumns columns={authorColumns} /></div>
+      <p className="directory-kicker" id="authors-title">AUTHORS</p>
+      <div className="author-directory-search">
+        <input id="author-directory-search-input" type="search" aria-label="Search authors" value={query} placeholder="Search by author name" onChange={(event) => setQuery(event.target.value)} />
+      </div>
+      {hasResults ? <div className="directory-grid"><MenuColumns columns={filteredAuthorColumns} onAuthor={onAuthor} /></div> : <p className="author-directory-empty" role="status">No authors found for “{query.trim()}”.</p>}
     </section>
-    <section className="directory-section translators" aria-labelledby="translators-title">
+    {!normalizedQuery && <section className="directory-section translators" aria-labelledby="translators-title">
       <p className="directory-kicker" id="translators-title">Translators</p>
-      <div className="directory-grid"><MenuColumns columns={translatorColumns} /></div>
-    </section>
+      <div className="directory-grid"><MenuColumns columns={translatorColumns} onAuthor={onAuthor} /></div>
+    </section>}
   </main>
 }
 
@@ -259,7 +269,7 @@ function AuthorProfile({ author, onBack, ...actions }: { author: string; onBack:
   return <main className={`author-page author-page-${authorSlug(author)}`}>
     <div className="author-page-content">
       <div className="author-profile-backdrop" aria-hidden="true"><img src={profile.portrait} alt="" /></div>
-      <Breadcrumb className="author-page-breadcrumb" label="Authors" current={author} onNavigate={onBack} />
+      <Breadcrumb className="page-breadcrumb--author" label="Authors" current={author} onNavigate={onBack} />
       <section className="author-profile-hero" aria-labelledby="author-profile-title">
         <div className="author-profile-copy">
           <p className="author-page-kicker">Author</p>
@@ -285,25 +295,13 @@ function AuthorProfile({ author, onBack, ...actions }: { author: string; onBack:
 }
 
 function AllBooksPage({ onHome, ...actions }: { onHome: () => void } & ProductCardActions) {
-  const allBooks = Array.from({ length: 5 }, (_, rowIndex) => products.map((product, productIndex) => ({
+  const allBooks = Array.from({ length: 28 }, (_, rowIndex) => products.map((product, productIndex) => ({
     ...product,
     key: `${rowIndex}-${productIndex}-${product.title}`,
   }))).flat()
-  const [isCompactListing, setIsCompactListing] = useState(() => window.matchMedia('(max-width: 900px)').matches)
   const [currentPage, setCurrentPage] = useState(1)
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 900px)')
-    const handleMediaChange = () => {
-      setIsCompactListing(mediaQuery.matches)
-      setCurrentPage(1)
-    }
-    handleMediaChange()
-    mediaQuery.addEventListener('change', handleMediaChange)
-    return () => mediaQuery.removeEventListener('change', handleMediaChange)
-  }, [])
-
-  const pageSize = isCompactListing ? 16 : allBooks.length
+  const pageSize = 24
   const pageCount = Math.ceil(allBooks.length / pageSize)
   const visibleBooks = allBooks.slice((currentPage - 1) * pageSize, currentPage * pageSize)
   const paginationItems: Array<number | 'ellipsis'> = pageCount > 5 ? [1, 2, 3, 'ellipsis', pageCount] : Array.from({ length: pageCount }, (_, index) => index + 1)
@@ -311,7 +309,7 @@ function AllBooksPage({ onHome, ...actions }: { onHome: () => void } & ProductCa
   return <main className="all-books-page">
     <div className="all-books-content">
       <div className="all-books-hero"><picture><source srcSet="/assets/all-books-hero.webp" type="image/webp" /><img src="/assets/all-books-hero.png" alt="Children exploring a garden together" width="2560" height="866" fetchPriority="high" decoding="async" /></picture></div>
-      <Breadcrumb className="all-books-breadcrumb" label="Home" current="All Books" onNavigate={onHome} />
+      <Breadcrumb className="page-breadcrumb--section" label="Home" current="All Books" onNavigate={onHome} />
       <section className="all-books-panel" aria-labelledby="all-books-title">
         <RibbonTitle title="ALL BOOKS" id="all-books-title" heading />
         <div className="all-books-grid">{visibleBooks.map((product) => <ProductCard key={product.key} product={product} {...actions} />)}</div>
@@ -346,7 +344,7 @@ function SearchResultsPage({ query, ...actions }: { query: string } & ProductCar
   </main>
 }
 
-function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks, onSearch, onQuickView, quickViewOpen, activeView, shopOpen }: { cartCount: number; onMenu: () => void; onShop: () => void; onShopHover: (open: boolean) => void; onAuthors: () => void; onAllBooks: () => void; onSearch: (query: string) => void; onQuickView: () => void; quickViewOpen: boolean; activeView: View; shopOpen: boolean }) {
+function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks, onSearch, onQuickView, onCart, quickViewOpen, activeView, shopOpen }: { cartCount: number; onMenu: () => void; onShop: () => void; onShopHover: (open: boolean) => void; onAuthors: () => void; onAllBooks: () => void; onSearch: (query: string) => void; onQuickView: () => void; onCart: () => void; quickViewOpen: boolean; activeView: View; shopOpen: boolean }) {
   const { t, language, setLanguage } = useLanguage()
   const headerRef = useRef<HTMLElement | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -380,7 +378,7 @@ function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks,
         </form>
         <button className={`quick-view-button ${quickViewOpen ? 'is-active' : ''}`} type="button" onClick={onQuickView} aria-expanded={quickViewOpen}>{t.quickView}</button>
         <a className="icon-button account-button" href="#login" aria-label={t.login}><i className="bi bi-person" aria-hidden="true" /></a>
-        <a className="icon-button cart-button" href="#cart" aria-label={`${t.cart}, ${cartCount} sản phẩm`}><img src="/assets/icon-cart.svg" alt="" /><span>{cartCount}</span></a>
+        <a className="icon-button cart-button" href="/cart" aria-label={`${t.cart}, ${cartCount} sản phẩm`} onClick={(event) => { event.preventDefault(); onCart() }}><img src="/assets/icon-cart.svg" alt="" /><span>{cartCount}</span></a>
       </div>
     </div>
     {shopOpen && activeView !== 'authors' && <ShopMenu onAllBooks={onAllBooks} />}
@@ -388,6 +386,7 @@ function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks,
 }
 
 function ProductCard({ product, onOpenDetail, onAddToCart, onPreview, onPreviewLeave, onSelectQuickView, quickViewOpen }: ProductCardActions & { product: Product }) {
+  const isAvailable = product.available !== false
   const [isWishlisted, setIsWishlisted] = useState(() => {
     try {
       return JSON.parse(window.localStorage.getItem('linery-wishlist') ?? '[]').includes(product.title)
@@ -418,7 +417,7 @@ function ProductCard({ product, onOpenDetail, onAddToCart, onPreview, onPreviewL
             <div className="product-overlay-copy"><strong>{product.title}</strong><span>{product.author}</span></div>
             <div className="product-overlay-actions">
               <button className={`product-wishlist ${isWishlisted ? 'is-active' : ''}`} type="button" aria-label={isWishlisted ? `Remove ${product.title} from wishlist` : `Add ${product.title} to wishlist`} aria-pressed={isWishlisted} onClick={toggleWishlist}>Wishlist</button>
-              <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onAddToCart(product) }}>Add to cart</button>
+              <button className={isAvailable ? '' : 'is-unavailable'} type="button" disabled={!isAvailable} aria-disabled={!isAvailable} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onAddToCart(product) }}>{isAvailable ? 'Add to cart' : 'Out of stock'}</button>
             </div>
             <span className="product-overlay-cta">Read more...</span>
           </div>
@@ -505,7 +504,7 @@ function AllNewsPage({ onHome, onOpenNews }: { onHome: () => void; onOpenNews: (
   return <main className="news-page">
     <div className="news-page-content">
       <div className="all-books-hero news-page-hero"><picture><source srcSet="/assets/all-books-hero.webp" type="image/webp" /><img src="/assets/all-books-hero.png" alt="Children exploring a garden together" width="2560" height="866" fetchPriority="high" decoding="async" /></picture></div>
-      <Breadcrumb className="news-page-breadcrumb" label={t.home} current={t.news} onNavigate={onHome} />
+      <Breadcrumb className="page-breadcrumb--section" label={t.home} current={t.news} onNavigate={onHome} />
       <section className="news-page-panel" aria-labelledby="all-news-title">
         <RibbonTitle title="NEWS & EVENTS" id="all-news-title" heading />
         <div className="news-page-grid">{newsItems.map((item) => { const copy = localizeNews(item, language); return <article className="news-page-card" key={item.slug}>
@@ -526,19 +525,24 @@ function NewsDetailPage({ item, onBack }: { item: NewsItem; onBack: () => void }
     <div className="news-detail-content">
       <article className="news-detail-card">
         <div className="news-detail-image-wrap"><img src={item.image} alt={copy.title} /></div>
-        <div className="news-detail-copy"><Breadcrumb className="news-detail-breadcrumb" label={t.news} current={copy.title} onNavigate={onBack} /><p className="news-detail-kicker">{item.date === 'Book notes' ? t.bookNotes : t.fromShelf}</p><h1>{copy.title}</h1><p className="news-detail-intro">{copy.excerpt}</p><div className="news-detail-body">{copy.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div><a className="news-source-link" href="https://www.instagram.com/linery_bookstore/" target="_blank" rel="noreferrer">{t.originalPost} <i className="bi bi-arrow-up-right" aria-hidden="true" /></a></div>
+        <div className="news-detail-copy"><Breadcrumb className="page-breadcrumb--news-detail" label={t.news} current={copy.title} onNavigate={onBack} /><p className="news-detail-kicker">{item.date === 'Book notes' ? t.bookNotes : t.fromShelf}</p><h1>{copy.title}</h1><p className="news-detail-intro">{copy.excerpt}</p><div className="news-detail-body">{copy.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div><a className="news-source-link" href="https://www.instagram.com/linery_bookstore/" target="_blank" rel="noreferrer">{t.originalPost} <i className="bi bi-arrow-up-right" aria-hidden="true" /></a></div>
       </article>
     </div>
   </main>
 }
 
-function BookDetail({ product, onBack, onAuthor }: { product: Product; onBack: () => void; onAuthor: (author: string) => void }) {
-  const galleryImages = [product.image]
+function BookDetail({ product, onBack, onAuthor, onAddToCart }: { product: Product; onBack: () => void; onAuthor: (author: string) => void; onAddToCart: (product: Product, quantity?: number) => void }) {
+  const galleryImages = product.gallery?.length ? product.gallery : [product.image]
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const [reviewFormOpen, setReviewFormOpen] = useState(false)
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  const [quantity, setQuantity] = useState(1)
+  const isLoggedIn = window.localStorage.getItem('linery-authenticated') === 'true'
+  const isAvailable = product.available !== false
+  const unitPrice = Number(product.price.replace(/[^0-9]/g, ''))
+  const totalPrice = `${(unitPrice * quantity).toLocaleString('vi-VN')}₫`
 
   useEffect(() => {
     if (!lightboxOpen) return undefined
@@ -552,30 +556,38 @@ function BookDetail({ product, onBack, onAuthor }: { product: Product; onBack: (
   }, [lightboxOpen, galleryImages.length])
 
   return <main className="book-detail-page">
-    <nav className="book-detail-breadcrumb" aria-label="Breadcrumb"><button onClick={onBack}>Shop</button><span aria-hidden="true">/</span><span>{product.title}</span></nav>
+    <Breadcrumb className="page-breadcrumb--book-detail" label="Shop" current={product.title} onNavigate={onBack} />
     <section className="book-detail-hero">
       <div className="book-detail-gallery">
         <button className="book-detail-cover-wrap" type="button" aria-label={`Open gallery for ${product.title}`} onClick={() => setLightboxOpen(true)}>
           <img className="book-detail-cover" src={galleryImages[activeImage]} alt={product.title} />
           <span className="book-detail-zoom"><i className="bi bi-arrows-fullscreen" aria-hidden="true" /> View full image</span>
         </button>
-        <div className="book-detail-thumbnails" aria-label="Book images">
-          {galleryImages.map((image, index) => <button key={image} className={`book-detail-thumbnail ${index === activeImage ? 'is-active' : ''}`} type="button" aria-label={`View image ${index + 1}`} onClick={() => setActiveImage(index)}><img src={image} alt="" loading="lazy" decoding="async" /></button>)}
-        </div>
       </div>
       <div className="book-detail-copy">
-        <p className="book-detail-kicker">Linery Books</p>
         <h1>{product.title}</h1>
         <p className="book-detail-author">by <a href={`/authors/${authorSlug(product.author)}`} onClick={(event) => { event.preventDefault(); onAuthor(product.author) }}>{product.author}</a></p>
         <div className="book-detail-rule" />
         <h2>Format</h2>
-        <div className="book-formats"><button className="is-selected">Paperback</button><button>Digital</button></div>
-        <div className="book-detail-category"><span>Category</span><div>{product.categories.map((category) => <a key={category} href={`/all-books?category=${encodeURIComponent(category.toLowerCase().replaceAll(' ', '-'))}`}>{category}<i className="bi bi-arrow-up-right" aria-hidden="true" /></a>)}</div></div>
+        <div className="book-formats"><button className="is-selected" type="button">Paperback</button></div>
+        <div className="book-detail-category"><span>Classification</span><div>{product.categories.map((category) => <a className="book-category-option" key={category} href={`/all-books?category=${encodeURIComponent(category.toLowerCase().replaceAll(' ', '-'))}`}>{category}</a>)}</div></div>
         <div className="book-detail-purchase">
-          <p className="book-detail-price">{product.price}</p>
-          <button className="book-add-button" type="button">Add to basket</button>
+          <div className="book-detail-price-row">
+            <div className="book-quantity-control" aria-label="Quantity">
+              <span className="book-quantity-label">Quantity</span>
+              <button type="button" aria-label="Decrease quantity" disabled={!isAvailable} onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button>
+              <input type="number" min="1" inputMode="numeric" aria-label="Quantity to buy" value={quantity} disabled={!isAvailable} onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))} />
+              <button type="button" aria-label="Increase quantity" disabled={!isAvailable} onClick={() => setQuantity((value) => value + 1)}>+</button>
+            </div>
+            <p className="book-detail-price" aria-live="polite">{isAvailable ? totalPrice : 'Out of stock'}</p>
+          </div>
+          <div className="book-detail-actions"><button className={isAvailable ? 'book-add-button' : 'book-add-button is-unavailable'} type="button" disabled={!isAvailable} onClick={() => onAddToCart(product, quantity)}>Add to cart</button><button className={isAvailable ? 'book-buy-button' : 'book-buy-button is-unavailable'} type="button" disabled={!isAvailable} onClick={() => onAddToCart(product, quantity)}>Buy Now</button></div>
         </div>
-        <p className="book-detail-note">Available from Linery Bookstore</p>
+        <p className={`book-detail-note ${isAvailable ? '' : 'is-unavailable'}`}>{isAvailable ? 'Available from Linery Bookstore' : <a href="mailto:info@linerybooks.vn">Contact us to be notified when it&apos;s back in stock.</a>}</p>
+        <section className="book-detail-inline-details" aria-labelledby="book-details-title">
+          <h2 id="book-details-title">Details</h2>
+          <dl><div><dt>Publisher</dt><dd>Linery Books</dd></div><div><dt>Published</dt><dd>2026</dd></div><div><dt>ISBN</dt><dd>9780000000000</dd></div><div><dt>Pages</dt><dd>320 pages</dd></div><div><dt>Language</dt><dd>English</dd></div><div><dt>Price</dt><dd>{product.price}</dd></div></dl>
+        </section>
         <section className="book-detail-inline-description" aria-labelledby="book-description-title">
           <h2 id="book-description-title">Description</h2>
           <div id="book-description-copy" className={`book-description-content ${descriptionExpanded ? 'is-expanded' : ''}`}>
@@ -589,12 +601,6 @@ function BookDetail({ product, onBack, onAuthor }: { product: Product; onBack: (
         </section>
       </div>
     </section>
-    <section className="book-detail-section book-author-section">
-      <div className="book-author-profile">
-        <button className="book-author-avatar" type="button" aria-label={`View ${product.author} author page`} onClick={() => onAuthor(product.author)}><i className="bi bi-person-circle" aria-hidden="true" /></button>
-        <div><h2>About <a href={`/authors/${product.author.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`} onClick={(event) => { event.preventDefault(); onAuthor(product.author) }}>{product.author}</a></h2><p>{product.author} is part of the Linery catalogue, a curated selection of literary voices and essential works for curious readers.</p></div>
-      </div>
-    </section>
     <section className="book-detail-section book-reviews" aria-labelledby="reviews-title">
       <div className="book-reviews-heading">
         <div>
@@ -605,25 +611,10 @@ function BookDetail({ product, onBack, onAuthor }: { product: Product; onBack: (
       </div>
       {reviewFormOpen && <form id="book-review-form" className="book-review-form" onSubmit={(event) => { event.preventDefault(); setReviewSubmitted(true) }}>
         <h3>Share your thoughts</h3>
-        <div className="book-review-rating-field">
-          <span>Your rating</span>
-          <div className="book-review-rating-options" role="group" aria-label="Your rating">
-            {[5, 4, 3, 2, 1].map((rating) => <label key={rating}><input type="radio" name="rating" value={rating} defaultChecked={rating === 5} /><span aria-hidden="true">{'★'.repeat(rating)}</span><span className="sr-only">{rating} out of 5 stars</span></label>)}
-          </div>
-        </div>
-        <div className="book-review-form-grid">
-          <label>Name<input type="text" name="name" autoComplete="name" required /></label>
-          <label>Email<input type="email" name="email" autoComplete="email" required /></label>
-        </div>
-        <label className="book-review-message">Your review<textarea name="review" rows={4} required /></label>
-        <button className="book-review-submit" type="submit">Submit review</button>
-        {reviewSubmitted && <p className="book-review-success" role="status">Thank you — your review has been received.</p>}
+        <div className="book-review-rating-options book-review-rating-options-static" aria-label="Five star rating"><span aria-hidden="true">★★★★★</span><span className="sr-only">5 out of 5 stars</span></div>
+        {isLoggedIn ? <><div className="book-review-form-grid"><label>Name<input type="text" name="name" autoComplete="name" required /></label><label>Email<input type="email" name="email" autoComplete="email" required /></label></div><label className="book-review-message">Your review<textarea name="review" rows={4} required /></label><button className="book-review-submit" type="submit">Submit review</button>{reviewSubmitted && <p className="book-review-success" role="status">Thank you — your review has been received.</p>}</> : <div className="book-review-login-required"><p className="book-review-login-notice">Please log in to share your thoughts.</p><a className="book-review-login-button" href="#login">Log in</a></div>}
       </form>}
       <div className="book-review-card"><div className="book-rating-stars" aria-label="5 out of 5 stars">★★★★★</div><p className="book-review-title">A thoughtful, beautifully made edition</p><p className="book-review-meta">Linery reader · 2 weeks ago</p><p className="book-review-body">A memorable title with a careful presentation. The kind of book you want to return to and share.</p></div>
-    </section>
-    <section className="book-detail-section book-details-grid">
-      <h2>Details</h2>
-      <dl><div><dt>Publisher</dt><dd>Linery Books</dd></div><div><dt>Published</dt><dd>2026</dd></div><div><dt>ISBN</dt><dd>9780000000000</dd></div><div><dt>Pages</dt><dd>320 pages</dd></div><div><dt>Language</dt><dd>English</dd></div><div><dt>Price</dt><dd>{product.price}</dd></div></dl>
     </section>
     {lightboxOpen && <div className="book-lightbox" role="dialog" aria-modal="true" aria-label={`Image gallery for ${product.title}`} onClick={() => setLightboxOpen(false)}>
       <div className="book-lightbox-frame" onClick={(event) => event.stopPropagation()}>
@@ -686,17 +677,37 @@ function Footer() {
   </footer>
 }
 
+function EmptyCartPage({ onHome }: { onHome: () => void }) {
+  const { t } = useLanguage()
+  return <main className="empty-cart-page" aria-labelledby="empty-cart-title">
+    <div className="empty-cart-card">
+      <div className="empty-cart-content">
+        <img className="empty-cart-illustration" src="/assets/empty-cart-illustration.png" alt="" aria-hidden="true" />
+        <p className="empty-cart-kicker">{t.emptyCartKicker}</p>
+        <h1 id="empty-cart-title">{t.emptyCart}</h1>
+        <p className="empty-cart-message">{t.emptyCartMessage}</p>
+        <a className="empty-cart-cta" href="/#home" onClick={(event) => { event.preventDefault(); onHome() }}>{t.continueShopping}</a>
+      </div>
+    </div>
+  </main>
+}
+
+function ScrollToTopButton() {
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+  return <button className="scroll-top-button" type="button" aria-label="Scroll to top" onClick={scrollToTop}><i className="bi bi-arrow-up" aria-hidden="true" /></button>
+}
+
 export function App() {
   const [language, setLanguage] = useState<Language>(() => window.localStorage.getItem('linery-language') === 'vi' ? 'vi' : 'en')
   const [welcomeOpen, setWelcomeOpen] = useState(() => window.localStorage.getItem('linery-welcome-seen') !== 'true')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [view, setView] = useState<View>(() => window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
+  const [view, setView] = useState<View>(() => window.location.pathname === '/cart' ? 'cart' : window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
   const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get('query') ?? '')
   const [selectedAuthor, setSelectedAuthor] = useState(() => getAuthorFromPath(window.location.pathname))
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(() => getNewsFromPath(window.location.pathname))
   const [shopOpen, setShopOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [cartCount, setCartCount] = useState(13)
+  const [cartCount, setCartCount] = useState(0)
   const [quickViewOpen, setQuickViewOpen] = useState(false)
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null)
   const previewCloseTimer = useRef<number | null>(null)
@@ -706,7 +717,7 @@ export function App() {
       setSearchQuery(new URLSearchParams(window.location.search).get('query') ?? '')
       setSelectedAuthor(getAuthorFromPath(window.location.pathname))
       setSelectedNews(getNewsFromPath(window.location.pathname))
-      setView(window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
+      setView(window.location.pathname === '/cart' ? 'cart' : window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
     }
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
@@ -758,6 +769,14 @@ export function App() {
     setView('home')
     setShopOpen(false)
     setMenuOpen(false)
+  }
+
+  const showCart = () => {
+    navigateTo('/cart')
+    setView('cart')
+    setShopOpen(false)
+    setMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const showAuthors = () => {
@@ -822,7 +841,7 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const addToCart = (_product: Product) => setCartCount((count) => count + 1)
+  const addToCart = (_product: Product, quantity = 1) => setCartCount((count) => count + quantity)
   const toggleQuickView = () => {
     if (quickViewOpen) {
       if (previewCloseTimer.current !== null) window.clearTimeout(previewCloseTimer.current)
@@ -852,15 +871,16 @@ export function App() {
   return <LanguageContext.Provider value={{ language, setLanguage: changeLanguage, t: translations[language] }}>
     {welcomeOpen && <WelcomeScreen onSelectLanguage={selectLanguage} />}
     <div id="top" className={`page-shell ${quickViewOpen ? 'quick-view-active' : ''}`}>
-    <Header cartCount={cartCount} onMenu={() => setMenuOpen(!menuOpen)} onShop={showShop} onShopHover={(open) => { if (view !== 'authors') setShopOpen(open) }} onAuthors={showAuthors} onAllBooks={showAllBooks} onSearch={showSearch} onQuickView={toggleQuickView} quickViewOpen={quickViewOpen} activeView={view} shopOpen={shopOpen} />
+    <Header cartCount={view === 'cart' ? 0 : cartCount} onMenu={() => setMenuOpen(!menuOpen)} onShop={showShop} onShopHover={(open) => { if (view !== 'authors') setShopOpen(open) }} onAuthors={showAuthors} onAllBooks={showAllBooks} onSearch={showSearch} onQuickView={toggleQuickView} onCart={showCart} quickViewOpen={quickViewOpen} activeView={view} shopOpen={shopOpen} />
     <button className={`mobile-backdrop ${menuOpen ? 'is-open' : ''}`} aria-label="Close menu" aria-hidden={!menuOpen} onClick={() => setMenuOpen(false)} />
     <MobileMenu isOpen={menuOpen} onShop={showHome} onAllBooks={showAllBooks} onAuthors={showAuthors} onSearch={showSearch} onClose={() => setMenuOpen(false)} />
-    {view === 'authors' ? <AuthorsDirectory /> : view === 'all-books' ? <AllBooksPage onHome={showHome} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'news' ? <AllNewsPage onHome={showHome} onOpenNews={showNewsDetail} /> : view === 'news-detail' ? <NewsDetailPage item={selectedNews ?? newsItems[0]} onBack={showAllNews} /> : view === 'search' ? <SearchResultsPage query={searchQuery} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'author' ? <AuthorProfile author={selectedAuthor || 'Edward W. Said'} onBack={showAuthors} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'detail' ? <BookDetail product={selectedProduct ?? products[0]} onBack={showHome} onAuthor={showAuthor} /> : <main>
+    {view === 'cart' ? <EmptyCartPage onHome={showHome} /> : view === 'authors' ? <AuthorsDirectory onAuthor={showAuthor} /> : view === 'all-books' ? <AllBooksPage onHome={showHome} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'news' ? <AllNewsPage onHome={showHome} onOpenNews={showNewsDetail} /> : view === 'news-detail' ? <NewsDetailPage item={selectedNews ?? newsItems[0]} onBack={showAllNews} /> : view === 'search' ? <SearchResultsPage query={searchQuery} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'author' ? <AuthorProfile author={selectedAuthor || 'Edward W. Said'} onBack={showAuthors} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'detail' ? <BookDetail product={selectedProduct ?? products[0]} onBack={showHome} onAuthor={showAuthor} onAddToCart={addToCart} /> : <main>
       <section className="hero scroll-section" aria-label="Linery bookstore illustration"><img src="/assets/hero-children.png" alt="Các em nhỏ cùng đọc sách trên nền đỏ" /></section>
       <div id="shop" className="collections">{sections.map(section => <Collection key={section.title} {...section} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} />)}<NewsSection onOpenNews={showNewsDetail} onOpenAllNews={showAllNews} /></div>
     </main>}
     <Footer />
     </div>
+    <ScrollToTopButton />
     {quickViewOpen && <BookPreview product={previewProduct} onClose={closePreview} onOpenDetail={showDetail} />}
   </LanguageContext.Provider>
 }
