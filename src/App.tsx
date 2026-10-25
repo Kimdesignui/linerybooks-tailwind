@@ -3,7 +3,7 @@ import { Menu } from 'lucide-react'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
 type Product = { image: string; gallery?: string[]; title: string; author: string; price: string; categories: string[]; available?: boolean }
-type View = 'home' | 'authors' | 'all-books' | 'news' | 'news-detail' | 'search' | 'author' | 'detail' | 'cart'
+type View = 'home' | 'authors' | 'all-books' | 'news' | 'news-detail' | 'search' | 'author' | 'detail' | 'cart' | 'login'
 type ProductCardActions = { onOpenDetail: (product: Product) => void; onAddToCart: (product: Product) => void; onPreview: (product: Product) => void; onPreviewLeave: () => void; onSelectQuickView: (product: Product) => void; quickViewOpen: boolean }
 const isEnhancedVariant = import.meta.env.VITE_LINERY_VARIANT === 'enhanced'
 type Language = 'en' | 'vi'
@@ -344,7 +344,7 @@ function SearchResultsPage({ query, ...actions }: { query: string } & ProductCar
   </main>
 }
 
-function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks, onSearch, onQuickView, onCart, quickViewOpen, activeView, shopOpen }: { cartCount: number; onMenu: () => void; onShop: () => void; onShopHover: (open: boolean) => void; onAuthors: () => void; onAllBooks: () => void; onSearch: (query: string) => void; onQuickView: () => void; onCart: () => void; quickViewOpen: boolean; activeView: View; shopOpen: boolean }) {
+function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks, onSearch, onQuickView, onLogin, onCart, quickViewOpen, activeView, shopOpen }: { cartCount: number; onMenu: () => void; onShop: () => void; onShopHover: (open: boolean) => void; onAuthors: () => void; onAllBooks: () => void; onSearch: (query: string) => void; onQuickView: () => void; onLogin: () => void; onCart: () => void; quickViewOpen: boolean; activeView: View; shopOpen: boolean }) {
   const { t, language, setLanguage } = useLanguage()
   const headerRef = useRef<HTMLElement | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -377,7 +377,7 @@ function Header({ cartCount, onMenu, onShop, onShopHover, onAuthors, onAllBooks,
           <input className="search-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} aria-label={t.search} autoFocus={searchOpen} onKeyDown={(event) => { if (event.key === 'Escape') setSearchOpen(false) }} />
         </form>
         <button className={`quick-view-button ${quickViewOpen ? 'is-active' : ''}`} type="button" onClick={onQuickView} aria-expanded={quickViewOpen}>{t.quickView}</button>
-        <a className="icon-button account-button" href="#login" aria-label={t.login}><i className="bi bi-person" aria-hidden="true" /></a>
+        <button className="icon-button account-button" type="button" aria-label={t.login} onClick={onLogin}><i className="bi bi-person" aria-hidden="true" /></button>
         <a className="icon-button cart-button" href="/cart" aria-label={`${t.cart}, ${cartCount} sản phẩm`} onClick={(event) => { event.preventDefault(); onCart() }}><img src="/assets/icon-cart.svg" alt="" /><span>{cartCount}</span></a>
       </div>
     </div>
@@ -692,6 +692,46 @@ function EmptyCartPage({ onHome }: { onHome: () => void }) {
   </main>
 }
 
+function LoginPage({ onHome }: { onHome: () => void }) {
+  const [message, setMessage] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setMessage('Sign-in is ready for connection to your account service.')
+  }
+
+  const handleSso = (provider: string) => setMessage(`${provider} sign-in is ready for OAuth configuration.`)
+
+  return <main className="login-page">
+    <div className="login-page-backdrop" aria-hidden="true" />
+    <section className="login-layout" aria-label="Sign in">
+      <div className="login-visual">
+        <div className="login-visual-copy"><p>Find your next story</p><span>Books selected with care for curious minds.</span><div className="login-visual-dots" aria-hidden="true"><b /><i /><i /></div></div>
+      </div>
+      <div className="login-card" aria-labelledby="login-title">
+        <button className="login-back" type="button" aria-label="Back to home" onClick={onHome}><i className="bi bi-arrow-left" aria-hidden="true" /></button>
+        <div className="login-card-inner">
+          <h1 id="login-title">Log in</h1>
+          <p className="login-intro">Enter your email and password to securely access<br />your account and manage your services.</p>
+          <form className="login-form" onSubmit={handleSubmit}>
+            <label htmlFor="login-email">Email Address</label>
+            <input id="login-email" name="email" type="email" placeholder="Your Email Address" autoComplete="email" required />
+            <label htmlFor="login-password">Password</label>
+            <div className="login-password-field"><input id="login-password" name="password" type={showPassword ? 'text' : 'password'} placeholder="Your Password" autoComplete="current-password" required /><button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)}><i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`} aria-hidden="true" /></button></div>
+            <div className="login-options"><label className="login-remember"><input type="checkbox" name="remember" /> <span>Remember me</span></label><a href="#login" onClick={(event) => event.preventDefault()}>Forgot Password</a></div>
+            <button className="login-submit" type="submit">Login</button>
+          </form>
+          <p className="login-signup">Don’t have an account? <a href="#login" onClick={(event) => event.preventDefault()}>Sign Up here</a></p>
+          <div className="login-divider"><span>Or Continue With Account</span></div>
+          <div className="login-sso" aria-label="Single sign-on options"><button type="button" aria-label="Sign in with Facebook" onClick={() => handleSso('Facebook')}><i className="bi bi-facebook" aria-hidden="true" /></button><button type="button" aria-label="Sign in with Google" onClick={() => handleSso('Google')}><i className="bi bi-google" aria-hidden="true" /></button><button type="button" aria-label="Sign in with Apple" onClick={() => handleSso('Apple')}><i className="bi bi-apple" aria-hidden="true" /></button></div>
+          {message && <p className="login-message" role="status">{message}</p>}
+        </div>
+      </div>
+    </section>
+  </main>
+}
+
 function ScrollToTopButton() {
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
   return <button className="scroll-top-button" type="button" aria-label="Scroll to top" onClick={scrollToTop}><i className="bi bi-arrow-up" aria-hidden="true" /></button>
@@ -701,7 +741,7 @@ export function App() {
   const [language, setLanguage] = useState<Language>(() => window.localStorage.getItem('linery-language') === 'vi' ? 'vi' : 'en')
   const [welcomeOpen, setWelcomeOpen] = useState(() => window.localStorage.getItem('linery-welcome-seen') !== 'true')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [view, setView] = useState<View>(() => window.location.pathname === '/cart' ? 'cart' : window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
+  const [view, setView] = useState<View>(() => window.location.pathname === '/login' ? 'login' : window.location.pathname === '/cart' ? 'cart' : window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
   const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get('query') ?? '')
   const [selectedAuthor, setSelectedAuthor] = useState(() => getAuthorFromPath(window.location.pathname))
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(() => getNewsFromPath(window.location.pathname))
@@ -717,7 +757,7 @@ export function App() {
       setSearchQuery(new URLSearchParams(window.location.search).get('query') ?? '')
       setSelectedAuthor(getAuthorFromPath(window.location.pathname))
       setSelectedNews(getNewsFromPath(window.location.pathname))
-      setView(window.location.pathname === '/cart' ? 'cart' : window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
+      setView(window.location.pathname === '/login' ? 'login' : window.location.pathname === '/cart' ? 'cart' : window.location.pathname === '/all-books' ? 'all-books' : window.location.pathname === '/news' ? 'news' : window.location.pathname.startsWith('/news/') ? 'news-detail' : window.location.pathname === '/search' ? 'search' : window.location.pathname.startsWith('/authors/') ? 'author' : 'home')
     }
     window.addEventListener('popstate', syncRoute)
     return () => window.removeEventListener('popstate', syncRoute)
@@ -741,6 +781,11 @@ export function App() {
     document.body.classList.toggle('welcome-open', welcomeOpen)
     return () => document.body.classList.remove('welcome-open')
   }, [welcomeOpen])
+
+  useEffect(() => {
+    document.body.classList.toggle('login-open', view === 'login')
+    return () => document.body.classList.remove('login-open')
+  }, [view])
 
   const selectLanguage = (language: 'en' | 'vi') => {
     changeLanguage(language)
@@ -776,6 +821,15 @@ export function App() {
     setView('cart')
     setShopOpen(false)
     setMenuOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const showLogin = () => {
+    navigateTo('/login')
+    setView('login')
+    setShopOpen(false)
+    setMenuOpen(false)
+    setQuickViewOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -871,10 +925,9 @@ export function App() {
   return <LanguageContext.Provider value={{ language, setLanguage: changeLanguage, t: translations[language] }}>
     {welcomeOpen && <WelcomeScreen onSelectLanguage={selectLanguage} />}
     <div id="top" className={`page-shell ${quickViewOpen ? 'quick-view-active' : ''}`}>
-    <Header cartCount={view === 'cart' ? 0 : cartCount} onMenu={() => setMenuOpen(!menuOpen)} onShop={showShop} onShopHover={(open) => { if (view !== 'authors') setShopOpen(open) }} onAuthors={showAuthors} onAllBooks={showAllBooks} onSearch={showSearch} onQuickView={toggleQuickView} onCart={showCart} quickViewOpen={quickViewOpen} activeView={view} shopOpen={shopOpen} />
+    <Header cartCount={view === 'cart' ? 0 : cartCount} onMenu={() => setMenuOpen(!menuOpen)} onShop={showShop} onShopHover={(open) => { if (view !== 'authors') setShopOpen(open) }} onAuthors={showAuthors} onAllBooks={showAllBooks} onSearch={showSearch} onQuickView={toggleQuickView} onLogin={showLogin} onCart={showCart} quickViewOpen={quickViewOpen} activeView={view} shopOpen={shopOpen} />
     <button className={`mobile-backdrop ${menuOpen ? 'is-open' : ''}`} aria-label="Close menu" aria-hidden={!menuOpen} onClick={() => setMenuOpen(false)} />
-    <MobileMenu isOpen={menuOpen} onShop={showHome} onAllBooks={showAllBooks} onAuthors={showAuthors} onSearch={showSearch} onClose={() => setMenuOpen(false)} />
-    {view === 'cart' ? <EmptyCartPage onHome={showHome} /> : view === 'authors' ? <AuthorsDirectory onAuthor={showAuthor} /> : view === 'all-books' ? <AllBooksPage onHome={showHome} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'news' ? <AllNewsPage onHome={showHome} onOpenNews={showNewsDetail} /> : view === 'news-detail' ? <NewsDetailPage item={selectedNews ?? newsItems[0]} onBack={showAllNews} /> : view === 'search' ? <SearchResultsPage query={searchQuery} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'author' ? <AuthorProfile author={selectedAuthor || 'Edward W. Said'} onBack={showAuthors} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'detail' ? <BookDetail product={selectedProduct ?? products[0]} onBack={showHome} onAuthor={showAuthor} onAddToCart={addToCart} /> : <main>
+    {view === 'login' ? <LoginPage onHome={showHome} /> : view === 'cart' ? <EmptyCartPage onHome={showHome} /> : view === 'authors' ? <AuthorsDirectory onAuthor={showAuthor} /> : view === 'all-books' ? <AllBooksPage onHome={showHome} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'news' ? <AllNewsPage onHome={showHome} onOpenNews={showNewsDetail} /> : view === 'news-detail' ? <NewsDetailPage item={selectedNews ?? newsItems[0]} onBack={showAllNews} /> : view === 'search' ? <SearchResultsPage query={searchQuery} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'author' ? <AuthorProfile author={selectedAuthor || 'Edward W. Said'} onBack={showAuthors} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} /> : view === 'detail' ? <BookDetail product={selectedProduct ?? products[0]} onBack={showHome} onAuthor={showAuthor} onAddToCart={addToCart} /> : <main>
       <section className="hero scroll-section" aria-label="Linery bookstore illustration"><img src="/assets/hero-children.png" alt="Các em nhỏ cùng đọc sách trên nền đỏ" /></section>
       <div id="shop" className="collections">{sections.map(section => <Collection key={section.title} {...section} onOpenDetail={showDetail} onAddToCart={addToCart} onPreview={openPreview} onPreviewLeave={schedulePreviewClose} onSelectQuickView={selectQuickView} quickViewOpen={quickViewOpen} />)}<NewsSection onOpenNews={showNewsDetail} onOpenAllNews={showAllNews} /></div>
     </main>}
