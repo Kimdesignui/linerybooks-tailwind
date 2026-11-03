@@ -1,10 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Roboto:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Roboto:wght@400&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-display: "Playfair Display", Georgia, serif;
   --font-caslon: "Adobe Caslon Pro", "ACaslonPro", Georgia, serif;
   --font-body: "Roboto", Arial, sans-serif;
+  --font-admin: "Inter", Arial, sans-serif;
   --color-olive: #9b942f;
   --color-olive-dark: #77721f;
   --color-ink: #1f2a24;
@@ -17,6 +18,13 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; background: var(--color-olive); }
+.admin-shell, .admin-shell .font-display, .admin-shell .font-body { font-family: var(--font-admin); }
+.admin-shell { --admin-body-size: 14px; font-size: var(--admin-body-size); line-height: 1.5; }
+.admin-shell button { font-size: var(--admin-body-size); line-height: 1.5; }
+.admin-shell .admin-primary-action { color: #fff; font-size: var(--admin-body-size); line-height: 1.5; }
+.admin-shell .admin-primary-action:hover, .admin-shell .admin-primary-action:focus-visible { color: #fff; background: var(--color-olive-dark); }
+.admin-shell .admin-primary-icon { color: #fff; }
+.admin-shell [class~="text-[10px]"], .admin-shell [class~="text-[11px]"], .admin-shell [class~="text-xs"] { font-size: 12px; line-height: 1.4; }
 body.menu-open { overflow: hidden; }
 body.welcome-open { overflow: hidden; }
 .welcome-screen { position: fixed; z-index: 70; inset: 0; display: flex; align-items: stretch; justify-content: flex-start; padding: 0; background: rgba(31,42,36,.28); color: #fff; opacity: 0; -webkit-backdrop-filter: blur(30px) saturate(150%); backdrop-filter: blur(30px) saturate(150%); animation: welcome-backdrop-in 280ms ease both; }

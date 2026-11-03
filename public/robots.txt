@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /cart
+Disallow: /checkout
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /account
+Disallow: /search
+
+Sitemap: https://linerybooks.dev.page/sitemap.xml

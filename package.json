@@ -16,11 +16,14 @@
     "@vitejs/plugin-react": "latest",
     "bootstrap-icons": "^1.13.2",
     "lucide-react": "latest",
+    "preline": "^4.2.0",
     "react": "latest",
     "react-dom": "latest",
+    "read-excel-file": "^9.3.14",
     "tailwindcss": "latest",
     "typescript": "latest",
-    "vite": "latest"
+    "vite": "latest",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@types/react": "latest",

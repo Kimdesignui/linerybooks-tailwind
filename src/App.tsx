@@ -6,10 +6,89 @@ type CartItem = { product: Product; quantity: number }
 type PaymentMethod = 'vnpay' | 'bank' | 'momo' | 'apple' | 'zalopay'
 type FulfillmentMethod = 'pickup' | 'delivery'
 type NewsItem = { image: string; title: string; titleVi: string; date: string; kicker: string; slug: string; excerpt: string; excerptVi: string; body: string[]; bodyVi: string[] }
-type View = 'home' | 'authors' | 'all-books' | 'collection' | 'search' | 'author' | 'detail' | 'cart' | 'checkout' | 'news' | 'news-detail' | 'login' | 'register' | 'forgot-password' | 'password-reset-sent' | 'reset-password' | 'password-reset-complete' | 'account'
+type View = 'home' | 'authors' | 'all-books' | 'collection' | 'search' | 'author' | 'detail' | 'cart' | 'checkout' | 'news' | 'news-detail' | 'login' | 'register' | 'forgot-password' | 'password-reset-sent' | 'reset-password' | 'password-reset-complete' | 'account' | 'admin'
 type AccountTab = 'profile' | 'orders' | 'orders-demo' | 'order-detail' | 'transactions' | 'transaction-detail' | 'security'
 type WriterDirectoryFilter = 'all' | 'authors' | 'translators'
 type ProductCardActions = { onOpenDetail: (product: Product) => void; onAddToCart: (product: Product, source?: HTMLElement) => void; onPreview: (product: Product) => void; onPreviewLeave: () => void; onSelectQuickView: (product: Product) => void; quickViewOpen: boolean }
+type AdminBook = { isbn: string; title: string; author: string; quantity: number; unitPrice: number | null; salePrice: number; link: string; format: string; line: string; category: string }
+type AdminBookKey = keyof AdminBook
+type AdminBookSortKey = AdminBookKey | 'stock'
+type ImportIssue = { row: number; field: string; message: string }
+type ImportReport = { fileName: string; total: number; valid: number; invalid: number; issues: ImportIssue[] }
+type ExcelCell = string | number | boolean | Date | null
+type BookManagementView = 'books' | 'categories' | 'formats'
+type AdminBookFilters = { author: string; format: string; line: string; category: string; stock: 'all' | 'in-stock' | 'out-of-stock'; minSalePrice: string; maxSalePrice: string; minUnitPrice: string; maxUnitPrice: string }
+const emptyAdminBookFilters: AdminBookFilters = { author: '', format: '', line: '', category: '', stock: 'all', minSalePrice: '', maxSalePrice: '', minUnitPrice: '', maxUnitPrice: '' }
+
+const siteName = 'Linery Bookstore'
+const siteDescription = 'Linery — hiệu sách tuyển chọn và independent press được xây dựng tại Hà Nội.'
+const publicSeoViews: View[] = ['home', 'authors', 'author', 'all-books', 'collection', 'detail', 'news', 'news-detail']
+
+function SeoHead({ view, product, news, author, language }: { view: View; product: Product | null; news: NewsItem | null; author: string; language: Language }) {
+  useEffect(() => {
+    const origin = window.location.origin
+    const pathname = window.location.pathname === '/' ? '/' : window.location.pathname.replace(/\/$/, '')
+    const canonicalUrl = `${origin}${pathname}`
+    const isPublic = publicSeoViews.includes(view)
+    const title = view === 'detail' && product ? `${product.title} | ${siteName}`
+      : view === 'news-detail' && news ? `${language === 'vi' ? news.titleVi : news.title} | ${siteName}`
+        : view === 'author' ? `${author} | ${siteName}`
+          : view === 'authors' ? `Authors | ${siteName}`
+            : view === 'all-books' ? `All books | ${siteName}`
+              : view === 'collection' ? `Book collection | ${siteName}`
+                : view === 'news' ? `Linery News | ${siteName}`
+                  : siteName
+    const description = view === 'detail' && product ? `${product.title} by ${product.author}. Discover this carefully selected title at Linery Bookstore.`
+      : view === 'news-detail' && news ? (language === 'vi' ? news.excerptVi : news.excerpt)
+        : view === 'author' ? `Selected works and profile of ${author} at Linery Bookstore.`
+          : siteDescription
+    const image = view === 'detail' && product ? product.image : view === 'news-detail' && news ? news.image : '/assets/hero-children.png'
+    const setMeta = (key: 'name' | 'property', value: string, content: string) => {
+      let element = document.head.querySelector(`meta[${key}="${value}"]`) as HTMLMetaElement | null
+      if (!element) { element = document.createElement('meta'); element.setAttribute(key, value); document.head.appendChild(element) }
+      element.content = content
+    }
+    setMeta('name', 'description', description)
+    setMeta('name', 'robots', isPublic ? 'index,follow,max-image-preview:large' : 'noindex,nofollow')
+    setMeta('property', 'og:type', view === 'detail' ? 'product' : view === 'news-detail' ? 'article' : 'website')
+    setMeta('property', 'og:site_name', siteName)
+    setMeta('property', 'og:title', title)
+    setMeta('property', 'og:description', description)
+    setMeta('property', 'og:url', canonicalUrl)
+    setMeta('property', 'og:image', `${origin}${image}`)
+    setMeta('name', 'twitter:card', 'summary_large_image')
+    setMeta('name', 'twitter:title', title)
+    setMeta('name', 'twitter:description', description)
+    setMeta('name', 'twitter:image', `${origin}${image}`)
+    document.title = title
+    document.documentElement.lang = language === 'vi' ? 'vi' : 'en'
+    let canonical = document.head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null
+    if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical) }
+    canonical.href = canonicalUrl
+    const price = product ? Number(product.price.replace(/[^0-9]/g, '')) : 0
+    const jsonLd: Record<string, unknown>[] = [{ '@context': 'https://schema.org', '@type': 'Organization', name: siteName, url: origin }, { '@context': 'https://schema.org', '@type': 'WebSite', name: siteName, url: origin, description: siteDescription }]
+    if (view === 'detail' && product) jsonLd.push({ '@context': 'https://schema.org', '@type': 'Product', name: product.title, image: [`${origin}${product.image}`], description, brand: { '@type': 'Brand', name: siteName }, offers: { '@type': 'Offer', priceCurrency: 'VND', price, availability: product.available === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock', url: canonicalUrl } })
+    if (view === 'news-detail' && news) jsonLd.push({ '@context': 'https://schema.org', '@type': 'Article', headline: language === 'vi' ? news.titleVi : news.title, description, image: `${origin}${news.image}`, articleSection: news.kicker, publisher: { '@type': 'Organization', name: siteName } })
+    if (view === 'author') jsonLd.push({ '@context': 'https://schema.org', '@type': 'Person', name: author, url: canonicalUrl, worksFor: { '@type': 'Organization', name: siteName } })
+    let script = document.head.querySelector('#linery-seo-jsonld') as HTMLScriptElement | null
+    if (!script) { script = document.createElement('script'); script.id = 'linery-seo-jsonld'; script.type = 'application/ld+json'; document.head.appendChild(script) }
+    script.textContent = JSON.stringify(jsonLd)
+  }, [author, language, news, product, view])
+  return null
+}
+const adminBookFields: Array<{ key: AdminBookKey; label: string; required: boolean; input: 'text' | 'number' | 'url' }> = [
+  { key: 'isbn', label: 'ISBN', required: false, input: 'text' },
+  { key: 'title', label: 'Tác phẩm', required: true, input: 'text' },
+  { key: 'author', label: 'Tác giả', required: true, input: 'text' },
+  { key: 'quantity', label: 'Số lượng', required: true, input: 'number' },
+  { key: 'unitPrice', label: 'Đơn giá nhập', required: false, input: 'number' },
+  { key: 'salePrice', label: 'Giá bán', required: true, input: 'number' },
+  { key: 'link', label: 'Link nguồn', required: false, input: 'url' },
+  { key: 'format', label: 'Thể thức', required: true, input: 'text' },
+  { key: 'line', label: 'Dòng sách', required: false, input: 'text' },
+  { key: 'category', label: 'Thể loại', required: true, input: 'text' },
+]
+const emptyAdminBookForm: Record<AdminBookKey, string> = { isbn: '', title: '', author: '', quantity: '', unitPrice: '', salePrice: '', link: '', format: '', line: '', category: '' }
 const loginSlides = [
   { image: '/assets/linery-login-artwork.png', quote: 'A quiet page can change the way we see the world.' },
 ]
@@ -146,6 +225,7 @@ const getAuthorFromPath = (pathname: string) => {
   return slug.split('-').map((part) => part ? `${part[0].toUpperCase()}${part.slice(1)}` : '').join(' ')
 }
 const getViewFromPath = (pathname: string, hash: string): View => {
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) return 'admin'
   if (hash === '#login') return 'login'
   if (hash === '#register') return 'register'
   if (hash === '#forgot-password') return 'forgot-password'
@@ -710,7 +790,7 @@ function NewsCard({ item, language, onOpen }: { item: NewsItem; language: 'en' |
   const title = language === 'vi' ? item.titleVi : item.title
   const excerpt = language === 'vi' ? item.excerptVi : item.excerpt
   return <a className="news-card" href={`/news/${item.slug}`} onClick={(event) => { event.preventDefault(); onOpen(item) }}>
-    <img className="news-card-image" src={item.image} alt="" />
+    <img className="news-card-image" src={item.image} alt={item.title} loading="lazy" decoding="async" />
     <p className="news-card-kicker">{item.date}</p>
     <h3>{title}</h3>
     <p className="news-card-excerpt">{excerpt}</p>
@@ -1222,7 +1302,7 @@ const formatPrice = (value: number) => `${value.toLocaleString('vi-VN')}₫`
 
 function CartItemRow({ item, onRemove, onChangeQuantity }: { item: CartItem; onRemove: () => void; onChangeQuantity: (delta: number) => void }) {
   return <article className="cart-item-row">
-    <img className="cart-item-image" src={item.product.image} alt="" />
+    <img className="cart-item-image" src={item.product.image} alt={`Bìa sách ${item.product.title}`} loading="lazy" decoding="async" />
     <div className="cart-item-copy">
       <h2>{item.product.title}</h2>
       <p>{item.product.author}</p>
@@ -1318,7 +1398,7 @@ function CheckoutPage({ items, onHome, onBackToCart }: { items: CartItem[]; onHo
           <fieldset><legend>Receiving method</legend><div className="checkout-method-tabs" role="tablist" aria-label="Receiving method"><button className={fulfillmentMethod === 'pickup' ? 'is-active' : ''} type="button" role="tab" aria-selected={fulfillmentMethod === 'pickup'} onClick={() => setFulfillmentMethod('pickup')}><i className={`bi ${fulfillmentMethod === 'pickup' ? 'bi-check-circle-fill' : 'bi-circle'}`} aria-hidden="true" />Pickup at counter</button><button className={fulfillmentMethod === 'delivery' ? 'is-active' : ''} type="button" role="tab" aria-selected={fulfillmentMethod === 'delivery'} onClick={() => setFulfillmentMethod('delivery')}><i className={`bi ${fulfillmentMethod === 'delivery' ? 'bi-check-circle-fill' : 'bi-circle'}`} aria-hidden="true" />Delivery</button></div>{fulfillmentMethod === 'pickup' ? <div className="checkout-tab-panel" role="tabpanel"><label className="checkout-select-field">Choose a store<select name="pickupStore" defaultValue="" required><option value="" disabled>Select a store</option><option value="store-1">Store 1: Hanoi Book Street, Cua Nam Ward, Hanoi</option><option value="store-2">Comming soon</option></select></label></div> : <div className="checkout-tab-panel checkout-delivery-fields" role="tabpanel"><label>Delivery address<input name="address" type="text" placeholder="House number and street" autoComplete="street-address" required /></label><div className="checkout-field-grid"><label>City<input name="city" type="text" placeholder="City" autoComplete="address-level2" required /></label><label>Postal code<input name="postalCode" type="text" placeholder="Postal code" autoComplete="postal-code" /></label></div><label>Delivery notes<textarea name="deliveryNotes" placeholder="Add instructions for delivery" rows={3} /></label></div>}</fieldset>
         </form>
       </section>
-      <aside className="checkout-summary" aria-labelledby="checkout-summary-title"><p className="checkout-kicker">Your order</p><h2 id="checkout-summary-title">Order summary</h2><div className="checkout-summary-items">{items.map((item) => <div className="checkout-summary-item" key={item.product.title}><img src={item.product.image} alt="" /><div><strong>{item.product.title}</strong><span>Qty {item.quantity}</span></div><b>{formatPrice(getPriceValue(item.product.price) * item.quantity)}</b></div>)}</div><form className="checkout-voucher" onSubmit={(event) => event.preventDefault()}><label htmlFor="voucher-code">Voucher / discount code</label><div className="checkout-voucher-row"><div className="checkout-voucher-input"><i className="bi bi-ticket-perforated" aria-hidden="true" /><input id="voucher-code" name="voucherCode" type="text" value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} placeholder="Enter your code" autoComplete="off" /></div><button type="submit">Apply</button></div></form><div className="cart-summary-line"><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div><div className="cart-summary-line"><span>Delivery fee</span><strong>Free</strong></div><div className="cart-summary-total"><span>Total</span><strong>{formatPrice(subtotal)}</strong></div><button className="checkout-submit checkout-summary-submit" type="submit" form="checkout-form">CONTINUE TO PAYMENT</button></aside>
+      <aside className="checkout-summary" aria-labelledby="checkout-summary-title"><p className="checkout-kicker">Your order</p><h2 id="checkout-summary-title">Order summary</h2><div className="checkout-summary-items">{items.map((item) => <div className="checkout-summary-item" key={item.product.title}><img src={item.product.image} alt={`Bìa sách ${item.product.title}`} loading="lazy" decoding="async" /><div><strong>{item.product.title}</strong><span>Qty {item.quantity}</span></div><b>{formatPrice(getPriceValue(item.product.price) * item.quantity)}</b></div>)}</div><form className="checkout-voucher" onSubmit={(event) => event.preventDefault()}><label htmlFor="voucher-code">Voucher / discount code</label><div className="checkout-voucher-row"><div className="checkout-voucher-input"><i className="bi bi-ticket-perforated" aria-hidden="true" /><input id="voucher-code" name="voucherCode" type="text" value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} placeholder="Enter your code" autoComplete="off" /></div><button type="submit">Apply</button></div></form><div className="cart-summary-line"><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div><div className="cart-summary-line"><span>Delivery fee</span><strong>Free</strong></div><div className="cart-summary-total"><span>Total</span><strong>{formatPrice(subtotal)}</strong></div><button className="checkout-submit checkout-summary-submit" type="submit" form="checkout-form">CONTINUE TO PAYMENT</button></aside>
     </div>
   </main>
 }
@@ -1532,6 +1612,408 @@ function RegisterPage({ onHome, onLogin, language }: { onHome: () => void; onLog
   </main>
 }
 
+const normalizeAdminHeader = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+const adminHeaderMap = new Map(adminBookFields.flatMap((field) => [[normalizeAdminHeader(field.label), field.key], [normalizeAdminHeader(field.key), field.key]] as const))
+const parseAdminNumber = (value: string) => {
+  const cleaned = value.replace(/[^0-9.-]/g, '')
+  if (!cleaned) return null
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) ? parsed : null
+}
+const validateAdminBook = (values: Record<AdminBookKey, string>, row: number): ImportIssue[] => {
+  const issues: ImportIssue[] = []
+  adminBookFields.forEach((field) => {
+    if (field.required && !String(values[field.key] ?? '').trim()) issues.push({ row, field: field.label, message: 'Đây là trường bắt buộc.' })
+  })
+  const quantity = parseAdminNumber(values.quantity)
+  if (String(values.quantity).trim() && (quantity === null || quantity < 0 || !Number.isInteger(quantity))) issues.push({ row, field: 'Số lượng', message: 'Phải là số nguyên lớn hơn hoặc bằng 0.' })
+  const salePrice = parseAdminNumber(values.salePrice)
+  if (String(values.salePrice).trim() && (salePrice === null || salePrice < 0)) issues.push({ row, field: 'Giá bán', message: 'Phải là số lớn hơn hoặc bằng 0.' })
+  const unitPrice = parseAdminNumber(values.unitPrice)
+  if (String(values.unitPrice).trim() && (unitPrice === null || unitPrice < 0)) issues.push({ row, field: 'Đơn giá nhập', message: 'Phải là số lớn hơn hoặc bằng 0.' })
+  if (String(values.link).trim() && !/^https?:\/\//i.test(values.link.trim())) issues.push({ row, field: 'Link nguồn', message: 'Phải bắt đầu bằng http:// hoặc https://.' })
+  return issues
+}
+const toAdminBook = (values: Record<AdminBookKey, string>): AdminBook => ({ isbn: values.isbn.trim(), title: values.title.trim(), author: values.author.trim(), quantity: parseAdminNumber(values.quantity) ?? 0, unitPrice: parseAdminNumber(values.unitPrice), salePrice: parseAdminNumber(values.salePrice) ?? 0, link: values.link.trim(), format: values.format.trim(), line: values.line.trim(), category: values.category.trim() })
+const downloadAdminWorkbook = async (report?: ImportReport) => {
+  const { default: writeExcelFile } = await import('write-excel-file/browser')
+  const headers = adminBookFields.map((field) => field.label)
+  const instructionRows = [
+    ['HƯỚNG DẪN NHẬP SÁCH', ''],
+    ['Trường bắt buộc', 'Tác phẩm, Tác giả, Số lượng, Giá bán, Thể thức, Thể loại'],
+    ['Trường không bắt buộc', 'ISBN, Đơn giá nhập, Link nguồn, Dòng sách'],
+    ['Quy tắc', 'Số lượng là số nguyên >= 0; Giá bán và Đơn giá nhập là số >= 0; Link nguồn nếu có phải bắt đầu bằng http:// hoặc https://.'],
+    ['Lưu ý', 'Không đổi tên cột trong sheet Sách. Mỗi dòng là một cuốn sách.'],
+  ]
+  const sheets: Array<{ data: ExcelCell[][]; sheet: string }> = [
+    { data: [headers], sheet: 'Sách' },
+    { data: instructionRows, sheet: 'Hướng dẫn' },
+  ]
+  if (report) {
+    sheets.push({ data: [['Dòng Excel', 'Trường', 'Lỗi'], ...report.issues.map((issue) => [issue.row, issue.field, issue.message])], sheet: 'Báo cáo lỗi' })
+  }
+  await writeExcelFile(sheets).toFile(report ? 'linery-books-import-report.xlsx' : 'linery-books-template.xlsx')
+}
+
+type AdminLookupItem = { id: string; name: string; parentId: string | null }
+
+function AdminLookupPanel({ view }: { view: Exclude<BookManagementView, 'books'> }) {
+  const isCategory = view === 'categories'
+  const [items, setItems] = useState<AdminLookupItem[]>(isCategory
+    ? [{ id: 'non-fiction', name: 'Non-fiction', parentId: null }, { id: 'essays', name: 'Essays', parentId: 'non-fiction' }, { id: 'literary-criticism', name: 'Literary Criticism', parentId: 'non-fiction' }, { id: 'philosophy', name: 'Philosophy', parentId: null }]
+    : ['11 × 18 cm', '13 × 20 cm', '14 × 20.5 cm', '16 × 24 cm'].map((name) => ({ id: name, name, parentId: null })))
+  const [newItem, setNewItem] = useState('')
+  const [formatWidth, setFormatWidth] = useState('')
+  const [formatHeight, setFormatHeight] = useState('')
+  const [newParentId, setNewParentId] = useState<string | null>(null)
+  const [sortAscending, setSortAscending] = useState(true)
+  const [lookupQuery, setLookupQuery] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [editingWidth, setEditingWidth] = useState('')
+  const [editingHeight, setEditingHeight] = useState('')
+  const [hiddenIds, setHiddenIds] = useState<string[]>([])
+  const [pageSize, setPageSize] = useState(10)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null)
+  const title = isCategory ? 'Quản lý danh mục' : 'Quản lý khổ sách'
+  const description = isCategory ? 'Danh mục có thể phân cấp cha–con. Kéo một dòng và thả lên dòng khác để đưa danh mục vào cấp con.' : 'Quản lý kích thước thành phẩm dùng khi thêm sách và chuẩn hóa dữ liệu xuất bản.'
+  const fieldLabel = isCategory ? 'Tên danh mục' : 'Tên khổ sách'
+  const slugify = (value: string) => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  const addItem = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const value = isCategory ? newItem.trim() : `${formatWidth.trim()} × ${formatHeight.trim()} cm`
+    const width = Number(formatWidth)
+    const height = Number(formatHeight)
+    if (!isCategory && (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0)) return
+    if (!value || items.some((item) => item.name.toLowerCase() === value.toLowerCase())) return
+    setItems((current) => [...current, { id: `${slugify(value)}-${Date.now()}`, name: value, parentId: isCategory ? newParentId : null }])
+    setNewItem('')
+    setFormatWidth('')
+    setFormatHeight('')
+    setNewParentId(null)
+  }
+  const getDepth = (item: AdminLookupItem) => {
+    let depth = 0
+    let parentId = item.parentId
+    while (parentId && depth < 4) {
+      depth += 1
+      parentId = items.find((candidate) => candidate.id === parentId)?.parentId ?? null
+    }
+    return depth
+  }
+  const filteredItems = items.filter((item) => item.name.toLowerCase().includes(lookupQuery.trim().toLowerCase()))
+  const sortedItems = isCategory ? [...filteredItems] : [...filteredItems].sort((first, second) => {
+    const result = first.name.localeCompare(second.name, 'vi')
+    return sortAscending ? result : -result
+  })
+  const pagedItems = sortedItems.slice(0, pageSize)
+  const getCategoryNumber = (itemId: string): string => {
+    const item = items.find((candidate) => candidate.id === itemId)
+    if (!item) return ''
+    const siblings = items.filter((candidate) => candidate.parentId === item.parentId)
+    const position = siblings.findIndex((candidate) => candidate.id === itemId) + 1
+    if (!item.parentId) return `${position}.`
+    const parentNumber = getCategoryNumber(item.parentId).replace(/\.$/, '')
+    return `${parentNumber}.${position}`
+  }
+  const startEdit = (item: AdminLookupItem) => {
+    const dimensions = item.name.match(/^(.+?)\s×\s(.+?)\s+cm$/)
+    setEditingId(item.id)
+    setEditingName(item.name)
+    setEditingWidth(dimensions?.[1] ?? '')
+    setEditingHeight(dimensions?.[2] ?? '')
+  }
+  const saveEdit = (itemId: string) => {
+    const nextName = isCategory ? editingName.trim() : `${editingWidth.trim()} × ${editingHeight.trim()} cm`
+    if (!nextName || (!isCategory && (!Number(editingWidth) || !Number(editingHeight)))) return
+    setItems((current) => current.map((item) => item.id === itemId ? { ...item, name: nextName } : item))
+    setEditingId(null)
+  }
+  const handleDrop = (targetId: string) => {
+    if (!isCategory || !draggedId || draggedId === targetId || !dropTarget) return
+    setItems((current) => {
+      const draggedItem = current.find((item) => item.id === draggedId)
+      if (!draggedItem) return current
+      const withoutDragged = current.filter((item) => item.id !== draggedId)
+      const targetIndex = withoutDragged.findIndex((item) => item.id === targetId)
+      if (targetIndex < 0) return current
+      const insertIndex = dropTarget.position === 'after' ? targetIndex + 1 : targetIndex
+      withoutDragged.splice(insertIndex, 0, draggedItem)
+      return withoutDragged
+    })
+    setDraggedId(null)
+    setDropTarget(null)
+  }
+  return <section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-5 shadow-[0_10px_30px_rgba(31,42,36,.04)] sm:p-6">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="font-body text-sm font-semibold uppercase tracking-[.14em] text-[var(--color-olive)]">Danh mục sách</p><h3 className="mt-2 font-display text-2xl font-semibold tracking-tight">{title}</h3><p className="mt-2 max-w-2xl font-body text-sm leading-6 text-[#74776f]">{description}</p></div><span className="inline-flex min-h-10 items-center rounded-xl bg-[#f6f5ed] px-4 font-body text-sm text-[#62655f]">{items.length} mục</span></div>
+    <form className={`mt-6 grid gap-3 ${isCategory ? 'sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)_auto]' : 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]'}`} onSubmit={addItem}>{isCategory ? <label className="min-w-0"><span className="mb-1.5 block font-body text-sm font-medium">{fieldLabel} <span className="text-[var(--color-olive-dark)]">*</span></span><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-olive)] focus:ring-2 focus:ring-[rgba(155,148,47,.14)]" required value={newItem} onChange={(event) => setNewItem(event.target.value)} placeholder={`Nhập ${fieldLabel.toLowerCase()}`} /></label> : <><label className="min-w-0"><span className="mb-1.5 block font-body text-sm font-medium">Chiều rộng <span className="text-[var(--color-olive-dark)]">*</span></span><div className="relative"><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 pr-12 font-body text-sm" required min="0.01" step="0.01" type="number" value={formatWidth} onChange={(event) => setFormatWidth(event.target.value)} placeholder="Ví dụ: 13" /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-body text-sm text-[#74776f]">cm</span></div></label><label className="min-w-0"><span className="mb-1.5 block font-body text-sm font-medium">Chiều cao <span className="text-[var(--color-olive-dark)]">*</span></span><div className="relative"><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 pr-12 font-body text-sm" required min="0.01" step="0.01" type="number" value={formatHeight} onChange={(event) => setFormatHeight(event.target.value)} placeholder="Ví dụ: 20" /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-body text-sm text-[#74776f]">cm</span></div></label></>}{isCategory && <label className="min-w-0"><span className="mb-1.5 block font-body text-sm font-medium">Danh mục cha</span><select className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" value={newParentId ?? ''} onChange={(event) => setNewParentId(event.target.value || null)}><option value="">Không có, cấp cao nhất</option>{items.filter((item) => getDepth(item) < 2).map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>}<button className="admin-primary-action inline-flex min-h-11 self-end items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 py-2.5 font-body text-sm font-medium text-white transition-colors hover:bg-[var(--color-olive-dark)]" type="submit"><i className="bi bi-plus-lg mr-2" aria-hidden="true" />Thêm mới</button></form>
+    {isCategory && <p className="mt-3 font-body text-sm text-[#74776f]"><i className="bi bi-arrows-move mr-2" aria-hidden="true" />Kéo thả danh mục lên một dòng khác để đặt làm danh mục con.</p>}
+    <div className="mt-6 overflow-x-auto rounded-xl border border-[#e6e2d7]"><table className="min-w-[760px] w-full text-left"><thead className="bg-[#fcfbf7]"><tr><th className="w-20 px-4 py-3 font-body text-sm font-semibold text-[#74776f]">STT</th><th className="px-4 py-3 font-body text-sm font-semibold"><div className="flex min-w-40 flex-col gap-2"><button className="inline-flex items-center gap-2" type="button" onClick={() => setSortAscending((current) => !current)}>{isCategory ? 'Tên' : 'Khổ sách'} {sortAscending ? '↑' : '↓'}</button><input className="min-h-8 w-full rounded-lg border border-[#dedbd0] bg-white px-2.5 font-body text-xs font-normal" value={lookupQuery} onChange={(event) => setLookupQuery(event.target.value)} placeholder="Tìm nhanh" aria-label={`Tìm nhanh theo ${isCategory ? 'tên danh mục' : 'khổ sách'}`} /></div></th>{isCategory ? <th className="px-4 py-3 font-body text-sm font-semibold">Cấp</th> : <><th className="px-4 py-3 font-body text-sm font-semibold">Chiều rộng</th><th className="px-4 py-3 font-body text-sm font-semibold">Chiều cao</th><th className="px-4 py-3 font-body text-sm font-semibold">Đơn vị</th></>}<th className="px-4 py-3 font-body text-sm font-semibold">Mã định danh</th><th className="px-4 py-3 font-body text-sm font-semibold">Trạng thái</th><th className="w-28 px-4 py-3 text-right font-body text-sm font-semibold">Thao tác</th></tr></thead><tbody>{pagedItems.map((item, index) => { const depth = getDepth(item); const dimensions = item.name.match(/^(.+?)\s×\s(.+?)\s+cm$/); const isDropTarget = dropTarget?.id === item.id; return <tr className={`border-t border-[#eeeae0] ${isDropTarget ? 'bg-[rgba(155,148,47,.1)]' : ''} ${isDropTarget && dropTarget.position === 'before' ? 'border-t-2 border-t-[var(--color-olive)]' : ''} ${isDropTarget && dropTarget.position === 'after' ? 'border-b-2 border-b-[var(--color-olive)]' : ''}`} draggable={isCategory} onDragStart={() => setDraggedId(item.id)} onDragOver={(event) => { if (isCategory && draggedId !== item.id) { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); setDropTarget({ id: item.id, position: event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after' }) } }} onDragLeave={() => { if (dropTarget?.id === item.id) setDropTarget(null) }} onDrop={() => handleDrop(item.id)} onDragEnd={() => { setDraggedId(null); setDropTarget(null) }} key={item.id}><td className="px-4 py-3 font-body text-sm text-[#74776f]">{isCategory ? getCategoryNumber(item.id) : index + 1}</td><td className={`${depth === 0 ? '' : depth === 1 ? 'pl-8' : 'pl-12'} px-4 py-3 font-body text-sm font-medium text-[var(--color-ink)]`}>{editingId === item.id ? <input className="min-h-9 w-full rounded-lg border border-[var(--color-olive)] bg-white px-2.5 font-body text-sm" value={editingName} onChange={(event) => setEditingName(event.target.value)} aria-label={`Sửa ${item.name}`} /> : <><span className="mr-2 text-[#98968c]">{isCategory ? '⋮⋮' : ''}</span>{depth > 0 && <span className="mr-2 text-[#98968c]">↳</span>}{item.name}</>}</td>{isCategory ? <td className="px-4 py-3 font-body text-sm text-[#74776f]">{depth === 0 ? 'Cấp cha' : `Cấp con ${depth}`}</td> : <><td className="px-4 py-3 font-body text-sm">{dimensions?.[1] ?? '—'}</td><td className="px-4 py-3 font-body text-sm">{dimensions?.[2] ?? '—'}</td><td className="px-4 py-3 font-body text-sm">cm</td></>}<td className="px-4 py-3 font-body text-sm text-[#74776f]">{slugify(item.name)}</td><td className="px-4 py-3 font-body text-sm"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${hiddenIds.includes(item.id) ? 'bg-[#f2f1ec] text-[#8b8d86]' : 'bg-[#edf7ef] text-[#39733e]'}`}>{hiddenIds.includes(item.id) ? 'Tạm ẩn' : 'Đang sử dụng'}</span></td><td className="px-4 py-3 text-right"><div className="flex justify-end gap-1"><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" type="button" aria-label={editingId === item.id ? `Lưu ${item.name}` : `Sửa ${item.name}`} onClick={() => editingId === item.id ? saveEdit(item.id) : startEdit(item)}><i className={`bi ${editingId === item.id ? 'bi-check-lg' : 'bi-pencil'}`} aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" type="button" aria-label={editingId === item.id ? `Hủy sửa ${item.name}` : (hiddenIds.includes(item.id) ? `Hiện ${item.name}` : `Tạm ẩn ${item.name}`)} onClick={() => editingId === item.id ? setEditingId(null) : setHiddenIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])}><i className={`bi ${editingId === item.id ? 'bi-x-lg' : (hiddenIds.includes(item.id) ? 'bi-eye' : 'bi-eye-slash')}`} aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8b8d86] hover:bg-[#f1e8e5] hover:text-[#a33d32]" type="button" aria-label={`Xóa ${item.name}`} onClick={() => setItems((current) => current.filter((currentItem) => currentItem.id !== item.id && currentItem.parentId !== item.id))}><i className="bi bi-trash3" aria-hidden="true" /></button></div></td></tr> })}</tbody><tfoot><tr className="border-t border-[#dedbd0] bg-[#fcfbf7] font-semibold"><td className="px-4 py-3 font-body text-sm text-[#74776f]">Tổng</td><td className="px-4 py-3 font-body text-sm">{items.length} mục</td><td colSpan={isCategory ? 1 : 3} className="px-4 py-3 font-body text-sm">—</td><td className="px-4 py-3 font-body text-sm">—</td><td className="px-4 py-3 font-body text-sm">—</td><td className="px-4 py-3 font-body text-sm">—</td></tr></tfoot></table></div><AdminTableFooter total={sortedItems.length} pageSize={pageSize} onPageSizeChange={setPageSize} />
+  </section>
+}
+
+const getAdminBookViewFromPath = (pathname: string): BookManagementView => pathname === '/admin/books/categories' ? 'categories' : pathname === '/admin/books/formats' ? 'formats' : 'books'
+
+function AdminBookSubnav({ pathname }: { pathname: string }) {
+  const items: Array<[string, string, BookManagementView]> = [['Danh sách sách', '/admin/books', 'books'], ['Danh mục', '/admin/books/categories', 'categories'], ['Khổ sách', '/admin/books/formats', 'formats']]
+  const currentView = pathname.startsWith('/admin/books') ? getAdminBookViewFromPath(pathname) : null
+  return <div className="ml-4 border-l border-[#e8e5da] pl-3">{items.map(([label, href, view]) => <a className={`flex items-center rounded-lg px-3 py-2 font-body text-sm ${currentView === view ? 'bg-[rgba(155,148,47,.12)] font-semibold text-[var(--color-olive-dark)]' : 'text-[#74776f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]'}`} href={href} aria-current={currentView === view ? 'page' : undefined} key={href}>{label}</a>)}</div>
+}
+
+type AdminModuleConfig = { section: string; title: string; description: string; addLabel: string; columns: string[]; rows: string[][]; empty: string }
+const adminPageSizeOptions = [10, 25, 50, 100]
+
+function AdminTableFooter({ total, pageSize, onPageSizeChange }: { total: number; pageSize: number; onPageSizeChange: (value: number) => void }) {
+  const shown = Math.min(total, pageSize)
+  return <div className="flex flex-col justify-between gap-3 border-t border-[#eeeae0] px-4 py-3 font-body text-sm text-[#74776f] sm:flex-row sm:items-center"><span>Hiển thị {total === 0 ? 0 : 1}–{shown} / {total} bản ghi</span><label className="inline-flex items-center gap-2">Số dòng hiển thị<select className="min-h-9 rounded-lg border border-[#dedbd0] bg-white px-2.5 font-body text-sm text-[var(--color-ink)]" value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}>{adminPageSizeOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label></div>
+}
+
+const parseAdminSummaryNumber = (value: string) => {
+  const normalized = value.replace(/[^0-9.-]/g, '')
+  return normalized && Number.isFinite(Number(normalized)) ? Number(normalized) : null
+}
+
+function AdminSummaryRow({ rows, numericColumns, columnCount }: { rows: string[][]; numericColumns: number[]; columnCount: number }) {
+  return <tr className="border-t border-[#dedbd0] bg-[#fcfbf7] font-semibold"><td className="px-4 py-3 font-body text-sm text-[#74776f]">Tổng</td>{Array.from({ length: columnCount - 1 }, (_, index) => { const columnIndex = index + 1; const total = numericColumns.includes(columnIndex) ? rows.reduce((sum, row) => sum + (parseAdminSummaryNumber(row[row.length === 1 ? 0 : columnIndex] ?? '') ?? 0), 0) : null; return <td className="px-4 py-3 font-body text-sm" key={columnIndex}>{total === null ? '—' : total.toLocaleString('vi-VN')}</td> })}</tr>
+}
+const adminModuleConfigs: Record<string, AdminModuleConfig> = {
+  '/admin/authors': { section: 'NỘI DUNG', title: 'Quản lý tác giả', description: 'Quản lý hồ sơ tác giả, ảnh đại diện, tiểu sử và các sách liên quan.', addLabel: 'Thêm tác giả', columns: ['Tên tác giả', 'Slug', 'Số sách', 'Trạng thái'], rows: [['Edward W. Said', 'edward-w-said', '4', 'Đang hoạt động'], ['Toni Morrison', 'toni-morrison', '1', 'Đang hoạt động'], ['Yukio Mishima', 'yukio-mishima', '2', 'Đang hoạt động']], empty: 'Chưa có tác giả nào.' },
+  '/admin/news': { section: 'NỘI DUNG', title: 'Quản lý tin tức', description: 'Soạn, xem trước và xuất bản bài viết editorial, tin tức và nội dung giới thiệu.', addLabel: 'Tạo bài viết', columns: ['Tiêu đề', 'Slug', 'Ngày xuất bản', 'Trạng thái'], rows: [['Toni Morrison: memory and the past', 'toni-morrison-memory-and-the-past', '—', 'Bản nháp'], ['Books about Women', 'books-about-women', '—', 'Bản nháp']], empty: 'Chưa có bài viết nào.' },
+  '/admin/orders': { section: 'BÁN HÀNG', title: 'Quản lý đơn hàng', description: 'Theo dõi đơn hàng, kênh bán, điểm xử lý, thanh toán và giao hàng.', addLabel: 'Tạo đơn thủ công', columns: ['Mã đơn', 'Khách hàng', 'Kênh bán', 'Tổng tiền', 'Trạng thái'], rows: [], empty: 'Chưa có đơn hàng.' },
+  '/admin/customers': { section: 'BÁN HÀNG', title: 'Quản lý khách hàng', description: 'Quản lý hồ sơ, địa chỉ, lịch sử mua hàng và đồng ý nhận marketing.', addLabel: 'Thêm khách hàng', columns: ['Khách hàng', 'Email', 'Số điện thoại', 'Đơn hàng', 'Trạng thái'], rows: [], empty: 'Chưa có khách hàng.' },
+  '/admin/stores': { section: 'BÁN HÀNG', title: 'Điểm bán và kho', description: 'Quản lý kênh bán, điểm bán, kho và số lượng tồn theo từng địa điểm.', addLabel: 'Thêm điểm bán', columns: ['Mã điểm', 'Tên điểm bán', 'Loại', 'Địa chỉ', 'Trạng thái'], rows: [['WEB', 'Website Linery', 'Kênh bán', 'Online', 'Đang hoạt động']], empty: 'Chưa có điểm bán.' },
+  '/admin/media': { section: 'NỘI DUNG', title: 'Thư viện media', description: 'Quản lý ảnh bìa, ảnh tác giả, banner và metadata dùng chung.', addLabel: 'Tải media', columns: ['Tên file', 'Loại asset', 'Kích thước', 'Alt text', 'Trạng thái'], rows: [], empty: 'Chưa có media asset.' },
+  '/admin/collections': { section: 'NỘI DUNG', title: 'Collection hiển thị', description: 'Quản lý các tuyển chọn như New & Upcoming, Linery Press và Linery Picks.', addLabel: 'Thêm collection', columns: ['Tên collection', 'Số sách', 'Thứ tự', 'Trạng thái'], rows: [['New & Upcoming', '0', '1', 'Đang hoạt động'], ['Linery News', '0', '2', 'Đang hoạt động']], empty: 'Chưa có collection.' },
+  '/admin/locations': { section: 'HỆ THỐNG', title: 'Địa điểm và khu vực giao hàng', description: 'Quản lý tỉnh thành, quận huyện, phường xã và khu vực giao hàng.', addLabel: 'Thêm khu vực', columns: ['Tên khu vực', 'Cấp địa giới', 'Phí giao hàng', 'Trạng thái'], rows: [['Hà Nội', 'Tỉnh / thành phố', 'Cấu hình riêng', 'Đang hoạt động']], empty: 'Chưa có khu vực.' },
+  '/admin/payments': { section: 'HỆ THỐNG', title: 'Thanh toán và tài khoản nhận tiền', description: 'Quản lý phương thức thanh toán, ngân hàng, QR và ví điện tử. Secret chỉ lưu ở backend.', addLabel: 'Thêm phương thức', columns: ['Phương thức', 'Loại', 'Môi trường', 'Thứ tự', 'Trạng thái'], rows: [['Chuyển khoản ngân hàng', 'Bank transfer', 'Production', '1', 'Đang hoạt động'], ['VNPay', 'Gateway', 'Sandbox', '2', 'Đang tắt'], ['MoMo', 'Wallet', 'Sandbox', '3', 'Đang tắt']], empty: 'Chưa có phương thức thanh toán.' },
+  '/admin/chatbot': { section: 'HỆ THỐNG', title: 'Cấu hình Gemini chatbot', description: 'Cấu hình hiển thị, prompt, quick prompts, model và giới hạn vận hành. API key không hiển thị ở frontend.', addLabel: 'Thêm quick prompt', columns: ['Quick prompt', 'Ngôn ngữ', 'Thứ tự', 'Trạng thái'], rows: [['Find a book', 'English', '1', 'Đang hoạt động'], ['Tìm sách theo tác giả', 'Tiếng Việt', '2', 'Đang hoạt động']], empty: 'Chưa có quick prompt.' },
+  '/admin/settings': { section: 'HỆ THỐNG', title: 'Cấu hình hệ thống', description: 'Cấu hình thương hiệu, hotline, email, footer, social, chính sách và nội dung storefront.', addLabel: 'Thêm cấu hình', columns: ['Nhóm cấu hình', 'Khóa', 'Ngôn ngữ', 'Trạng thái'], rows: [['Thương hiệu', 'site_name', 'Chung', 'Đã cấu hình'], ['Footer', 'footer_hotline', 'Tiếng Việt', 'Đã cấu hình'], ['Social', 'instagram_url', 'Chung', 'Chưa cấu hình']], empty: 'Chưa có cấu hình.' },
+  '/admin/import-history': { section: 'SÁCH', title: 'Lịch sử nhập Excel', description: 'Xem lại các batch nhập sách, người thực hiện, kết quả và tải báo cáo lỗi.', addLabel: 'Nhập Excel', columns: ['Tên file', 'Người nhập', 'Tổng dòng', 'Hợp lệ', 'Lỗi', 'Trạng thái'], rows: [], empty: 'Chưa có lịch sử nhập.' },
+  '/admin/publishers': { section: 'NỘI DUNG', title: 'Quản lý nhà xuất bản', description: 'Quản lý danh sách nhà xuất bản và liên kết với các đầu sách.', addLabel: 'Thêm nhà xuất bản', columns: ['Nhà xuất bản', 'Slug', 'Số sách', 'Trạng thái'], rows: [], empty: 'Chưa có nhà xuất bản.' },
+  '/admin/website': { section: 'HỆ THỐNG', title: 'Cấu hình website', description: 'Quản lý logo, favicon, banner desktop/mobile, nội dung footer và bản xem trước trước khi xuất bản.', addLabel: 'Thêm content block', columns: ['Nhóm nội dung', 'Khóa', 'Ngôn ngữ', 'Trạng thái'], rows: [['Header', 'header_logo', 'Chung', 'Đã cấu hình'], ['Footer', 'footer_content', 'Tiếng Việt', 'Đã cấu hình'], ['Banner', 'home_banner_01', 'Chung', 'Bản nháp']], empty: 'Chưa có content block.' },
+}
+
+function AdminManagementSidebar({ pathname }: { pathname: string }) {
+  const item = (href: string, label: string, icon: string) => <a className={`flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm transition-colors ${pathname === href ? 'bg-[rgba(155,148,47,.12)] font-semibold text-[var(--color-olive-dark)]' : 'text-[#62655f] hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]'}`} href={href} aria-current={pathname === href ? 'page' : undefined}><i className={`bi ${icon}`} aria-hidden="true" />{label}</a>
+  return <nav className="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Điều hướng quản trị"><p className="px-3 pb-2 pt-3 font-body text-xs font-semibold uppercase tracking-[.14em] text-[#98968c]">Khu vực quản trị</p>{item('/admin', 'Tổng quan', 'bi-grid-1x2-fill')}<div><a className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-semibold text-[var(--color-ink)]" href="/admin/books"><span className="flex items-center gap-3"><i className="bi bi-book" aria-hidden="true" />Quản lý sách</span><i className="bi bi-chevron-down text-xs" aria-hidden="true" /></a><AdminBookSubnav pathname={pathname} />{item('/admin/import-history', 'Lịch sử nhập Excel', 'bi-clock-history')}</div><p className="px-3 pb-2 pt-7 font-body text-xs font-semibold uppercase tracking-[.14em] text-[#98968c]">Bán hàng</p>{item('/admin/orders', 'Đơn hàng', 'bi-bag')}{item('/admin/customers', 'Khách hàng', 'bi-person-lines-fill')}{item('/admin/stores', 'Điểm bán và kho', 'bi-shop')}<p className="px-3 pb-2 pt-7 font-body text-xs font-semibold uppercase tracking-[.14em] text-[#98968c]">Nội dung</p>{item('/admin/authors', 'Tác giả', 'bi-people')}{item('/admin/publishers', 'Nhà xuất bản', 'bi-building')}{item('/admin/news', 'Tin tức', 'bi-newspaper')}{item('/admin/media', 'Media', 'bi-images')}{item('/admin/collections', 'Collection', 'bi-collection')}<p className="px-3 pb-2 pt-7 font-body text-xs font-semibold uppercase tracking-[.14em] text-[#98968c]">Hệ thống</p>{item('/admin/website', 'Website & footer', 'bi-window')}{item('/admin/locations', 'Địa điểm', 'bi-geo-alt')}{item('/admin/payments', 'Thanh toán', 'bi-credit-card')}{item('/admin/chatbot', 'Gemini chatbot', 'bi-chat-dots')}{item('/admin/settings', 'Cài đặt', 'bi-sliders')}</nav>
+}
+
+type AdminAuthorRecord = { id: string; name: string; slug: string; role: string; books: number; email: string; status: 'Đang hoạt động' | 'Tạm ẩn'; image: string; bio: string }
+const adminAuthorRecords: AdminAuthorRecord[] = [
+  { id: 'edward-w-said', name: 'Edward W. Said', slug: 'edward-w-said', role: 'Author', books: 4, email: '—', status: 'Đang hoạt động', image: '/assets/author-edward-w-said.png', bio: 'Edward W. Said là một trong những tiếng nói quan trọng của phê bình văn học và nghiên cứu văn hóa hiện đại.' },
+  { id: 'toni-morrison', name: 'Toni Morrison', slug: 'toni-morrison', role: 'Author', books: 1, email: '—', status: 'Đang hoạt động', image: '/assets/news-instagram-02.jpg', bio: 'Nhà văn Mỹ đoạt Nobel Văn học, được biết đến với những tác phẩm giàu chiều sâu về ký ức và căn tính.' },
+  { id: 'yukio-mishima', name: 'Yukio Mishima', slug: 'yukio-mishima', role: 'Author', books: 2, email: '—', status: 'Đang hoạt động', image: '/assets/news-instagram-04.jpg', bio: 'Nhà văn Nhật Bản với các tác phẩm giàu tính biểu tượng, kỷ luật hình thức và sức gợi văn hóa.' },
+]
+
+function AdminAuthorsPage({ pathname }: { pathname: string }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [view, setView] = useState<'cards' | 'table' | 'detail'>('cards')
+  const [query, setQuery] = useState('')
+  const [selectedId, setSelectedId] = useState('edward-w-said')
+  const [sortAscending, setSortAscending] = useState(true)
+  const [pageSize, setPageSize] = useState(10)
+  const authors = adminAuthorRecords.filter((author) => `${author.name} ${author.slug} ${author.role}`.toLowerCase().includes(query.trim().toLowerCase())).sort((first, second) => sortAscending ? first.name.localeCompare(second.name, 'vi') : second.name.localeCompare(first.name, 'vi'))
+  const pagedAuthors = authors.slice(0, pageSize)
+  const selected = adminAuthorRecords.find((author) => author.id === selectedId) ?? adminAuthorRecords[0]
+  const openDetail = (id: string) => { setSelectedId(id); setView('detail') }
+  const viewButton = (nextView: 'cards' | 'table' | 'detail', icon: string, label: string) => <button className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-3.5 font-body text-sm transition-colors ${view === nextView ? 'border-[var(--color-olive)] bg-[rgba(155,148,47,.12)] font-semibold text-[var(--color-olive-dark)]' : 'border-[#dedbd0] text-[#62655f] hover:border-[var(--color-olive)]'}`} type="button" aria-pressed={view === nextView} onClick={() => setView(nextView)}><i className={`bi ${icon}`} aria-hidden="true" />{label}</button>
+  return <div className="admin-shell flex min-h-screen bg-[#f7f7f2] text-[var(--color-ink)]"><aside className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex w-72 -translate-x-full flex-col border-r border-[#e5e2d7] bg-white transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'is-open translate-x-0' : ''}`}><div className="flex h-20 items-center justify-between border-b border-[#eeeae0] px-6"><a className="font-display text-lg font-semibold tracking-[.08em] text-[var(--color-ink)]" href="/#home">LINERY <span className="font-body text-xs font-normal tracking-[.18em] text-[var(--color-olive)]">QUẢN TRỊ</span></a><button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#dedbd0] lg:hidden" type="button" aria-label="Đóng menu quản trị" onClick={() => setSidebarOpen(false)}><i className="bi bi-x-lg" aria-hidden="true" /></button></div><AdminManagementSidebar pathname={pathname} /><div className="border-t border-[#eeeae0] p-4"><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] hover:bg-[#f5f3ec]" href="/#home"><i className="bi bi-arrow-left" aria-hidden="true" />Về cửa hàng</a></div></aside>{sidebarOpen && <button className="fixed inset-0 z-30 bg-[rgba(31,42,36,.32)] lg:hidden" type="button" aria-label="Đóng menu quản trị" onClick={() => setSidebarOpen(false)} />}<div className="min-w-0 flex-1"><header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#e5e2d7] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8"><div className="flex items-center gap-3"><button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dedbd0] lg:hidden" type="button" aria-label="Mở menu quản trị" onClick={() => setSidebarOpen(true)}><i className="bi bi-list" aria-hidden="true" /></button><div><p className="font-body text-sm text-[#8b8d86]">Nội dung</p><h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Hồ sơ tác giả</h1></div></div><button className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-olive)] font-display text-sm text-white" type="button" aria-label="Hồ sơ quản trị">K</button></header><main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-2 font-body text-sm font-semibold uppercase tracking-[.14em] text-[var(--color-olive)]">NỘI DUNG</p><h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Hồ sơ tác giả</h2><p className="mt-2 max-w-2xl font-body text-sm leading-6 text-[#74776f]">Quản lý thông tin, hình ảnh và các tác phẩm được liên kết với từng tác giả.</p></div><button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white hover:bg-[var(--color-olive-dark)]" type="button"><i className="bi bi-plus-lg mr-2" aria-hidden="true" />Thêm tác giả</button></div><section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-4 shadow-[0_10px_30px_rgba(31,42,36,.04)] sm:p-5"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex flex-wrap gap-2">{viewButton('cards', 'bi-grid-3x3-gap', 'Thẻ')}{viewButton('table', 'bi-list-ul', 'Bảng')}{viewButton('detail', 'bi-person-vcard', 'Chi tiết')}</div><div className="flex flex-col gap-2 sm:flex-row"><button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#dedbd0] px-3.5 font-body text-sm text-[#62655f] hover:border-[var(--color-olive)]" type="button" onClick={() => setSortAscending((current) => !current)}><i className="bi bi-sort-alpha-down" aria-hidden="true" />Tên {sortAscending ? 'A–Z' : 'Z–A'}</button><label className="relative sm:w-72"><span className="sr-only">Tìm tác giả</span><i className="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8b8d86]" aria-hidden="true" /><input className="min-h-10 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] pl-9 pr-3 font-body text-sm" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tác giả" /></label></div></div></section>{view === 'cards' && <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{authors.map((author) => <article className="overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white" key={author.id}><div className="flex items-center justify-between border-b border-[#eeeae0] px-4 py-3"><span className="font-body text-xs text-[#8b8d86]">{author.role}</span><div className="flex gap-1"><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec]" type="button" aria-label={`Sửa ${author.name}`}><i className="bi bi-pencil" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec]" type="button" aria-label={`Tạm ẩn ${author.name}`}><i className="bi bi-eye-slash" aria-hidden="true" /></button></div></div><img className="h-64 w-full object-cover object-top" src={author.image} alt={author.name} /><div className="space-y-3 p-5"><button className="font-display text-xl font-semibold hover:text-[var(--color-olive-dark)]" type="button" onClick={() => openDetail(author.id)}>{author.name}</button><dl className="space-y-2 font-body text-sm"><div className="flex justify-between gap-4"><dt className="font-semibold">Slug</dt><dd className="text-[#74776f]">{author.slug}</dd></div><div className="flex justify-between gap-4"><dt className="font-semibold">Số sách</dt><dd className="text-[#74776f]">{author.books}</dd></div><div className="flex justify-between gap-4"><dt className="font-semibold">Trạng thái</dt><dd className="font-semibold text-[#39733e]">{author.status}</dd></div></dl><button className="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-[var(--color-olive)] px-4 font-body text-sm font-medium text-white hover:bg-[var(--color-olive-dark)]" type="button" onClick={() => openDetail(author.id)}>Xem hồ sơ</button></div></article>)}</section>}{view === 'table' && <section className="mt-6 overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white"><div className="overflow-x-auto"><table className="min-w-[820px] w-full text-left"><thead className="bg-[#fcfbf7]"><tr><th className="px-4 py-3 font-body text-sm font-semibold">STT</th><th className="px-4 py-3 font-body text-sm font-semibold">Tên tác giả</th><th className="px-4 py-3 font-body text-sm font-semibold">Slug</th><th className="px-4 py-3 font-body text-sm font-semibold">Vai trò</th><th className="px-4 py-3 font-body text-sm font-semibold">Số sách</th><th className="px-4 py-3 font-body text-sm font-semibold">Trạng thái</th><th className="px-4 py-3 text-right font-body text-sm font-semibold">Thao tác</th></tr></thead><tbody>{pagedAuthors.map((author, index) => <tr className="border-t border-[#eeeae0]" key={author.id}><td className="px-4 py-3 font-body text-sm text-[#74776f]">{index + 1}</td><td className="px-4 py-3 font-body text-sm font-medium"><button type="button" onClick={() => openDetail(author.id)}>{author.name}</button></td><td className="px-4 py-3 font-body text-sm text-[#74776f]">{author.slug}</td><td className="px-4 py-3 font-body text-sm">{author.role}</td><td className="px-4 py-3 font-body text-sm">{author.books}</td><td className="px-4 py-3 font-body text-sm"><span className="rounded-full bg-[#edf7ef] px-2.5 py-1 text-xs font-semibold text-[#39733e]">{author.status}</span></td><td className="px-4 py-3 text-right"><button className="mr-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec]" type="button" aria-label={`Sửa ${author.name}`}><i className="bi bi-pencil" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec]" type="button" aria-label={`Tạm ẩn ${author.name}`}><i className="bi bi-eye-slash" aria-hidden="true" /></button></td></tr>)}</tbody><tfoot><AdminSummaryRow rows={authors.map((author) => [String(author.books)])} numericColumns={[1]} columnCount={7} /></tfoot></table></div><AdminTableFooter total={authors.length} pageSize={pageSize} onPageSizeChange={setPageSize} /></section>}{view === 'detail' && <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,.8fr)]"><article className="rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-6"><div className="flex items-center justify-between border-b border-[#eeeae0] pb-4"><div><p className="font-body text-sm text-[#8b8d86]">Hồ sơ tác giả</p><h3 className="mt-1 font-display text-2xl font-semibold">{selected.name}</h3></div><div className="flex gap-2"><button className="inline-flex min-h-10 rounded-xl bg-[var(--color-olive)] px-4 font-body text-sm font-medium text-white" type="button">Lưu</button><button className="inline-flex min-h-10 rounded-xl border border-[#dedbd0] px-4 font-body text-sm" type="button" onClick={() => setView('cards')}>Hủy</button></div></div><div className="mt-5 grid gap-5 sm:grid-cols-[180px_minmax(0,1fr)]"><img className="h-56 w-full rounded-xl object-cover object-top" src={selected.image} alt={selected.name} /><div className="space-y-4"><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Tên hiển thị</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" defaultValue={selected.name} /></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Slug</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" defaultValue={selected.slug} /></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Vai trò</span><select className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" defaultValue={selected.role}><option>Author</option><option>Translator</option></select></label></div></div><label className="mt-5 block"><span className="mb-1.5 block font-body text-sm font-medium">Tiểu sử</span><textarea className="min-h-32 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] p-3.5 font-body text-sm" defaultValue={selected.bio} /></label></article><aside className="rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-6"><div className="border-b border-[#eeeae0] pb-4"><h3 className="font-display text-xl font-semibold">Tác phẩm liên quan</h3><p className="mt-1 font-body text-sm text-[#74776f]">{selected.books} bản ghi được liên kết với tác giả này.</p></div><div className="mt-5 space-y-3">{Array.from({ length: selected.books }, (_, index) => <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e6e2d7] bg-[#fcfbf7] p-3" key={index}><span className="font-body text-sm">Tác phẩm liên kết {index + 1}</span><i className="bi bi-arrow-up-right text-[#8b8d86]" aria-hidden="true" /></div>)}</div></aside></section>}{authors.length === 0 && <section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-10 text-center"><i className="bi bi-people text-3xl text-[var(--color-olive)]" aria-hidden="true" /><h3 className="mt-3 font-display text-lg font-semibold">Chưa có tác giả</h3><p className="mt-2 font-body text-sm text-[#74776f]">Không tìm thấy tác giả phù hợp.</p></section>}</main></div></div>
+}
+
+function AdminModulePage({ pathname, config }: { pathname: string; config: AdminModuleConfig }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [rows, setRows] = useState(config.rows)
+  const [sort, setSort] = useState({ index: 0, ascending: true })
+  const [formOpen, setFormOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [pageSize, setPageSize] = useState(10)
+  const filteredRows = rows.filter((row) => row.join(' ').toLowerCase().includes(query.trim().toLowerCase()))
+  const sortedRows = [...filteredRows].sort((first, second) => {
+    const result = (first[sort.index] ?? '').localeCompare(second[sort.index] ?? '', 'vi', { numeric: true })
+    return sort.ascending ? result : -result
+  })
+  const pagedRows = sortedRows.slice(0, pageSize)
+  const numericModuleColumns = config.columns.map((column, index) => /Số|Hợp lệ|Lỗi|Thứ tự|Đơn hàng/.test(column) ? index + 1 : -1).filter((index) => index >= 0)
+  const addRow = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const value = draft.trim()
+    if (!value) return
+    setRows((current) => [[value, ...config.columns.slice(1).map((column) => column === 'Trạng thái' ? 'Bản nháp' : '—')], ...current])
+    setDraft('')
+    setFormOpen(false)
+  }
+  return <div className="admin-shell flex min-h-screen bg-[#f7f7f2] text-[var(--color-ink)]"><aside className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex w-72 -translate-x-full flex-col border-r border-[#e5e2d7] bg-white transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'is-open translate-x-0' : ''}`}><div className="flex h-20 items-center justify-between border-b border-[#eeeae0] px-6"><a className="font-display text-lg font-semibold tracking-[.08em] text-[var(--color-ink)]" href="/#home">LINERY <span className="font-body text-xs font-normal tracking-[.18em] text-[var(--color-olive)]">QUẢN TRỊ</span></a><button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#dedbd0] text-[var(--color-ink)] lg:hidden" type="button" aria-label="Đóng menu quản trị" onClick={() => setSidebarOpen(false)}><i className="bi bi-x-lg" aria-hidden="true" /></button></div><AdminManagementSidebar pathname={pathname} /><div className="border-t border-[#eeeae0] p-4"><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] hover:bg-[#f5f3ec]" href="/#home"><i className="bi bi-arrow-left" aria-hidden="true" />Về cửa hàng</a></div></aside>{sidebarOpen && <button className="fixed inset-0 z-30 bg-[rgba(31,42,36,.32)] lg:hidden" type="button" aria-label="Đóng menu quản trị" onClick={() => setSidebarOpen(false)} />}<div className="min-w-0 flex-1"><header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#e5e2d7] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8"><div className="flex items-center gap-3"><button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dedbd0] lg:hidden" type="button" aria-label="Mở menu quản trị" onClick={() => setSidebarOpen(true)}><i className="bi bi-list" aria-hidden="true" /></button><div><p className="font-body text-sm text-[#8b8d86]">Quản trị</p><h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">{config.title}</h1></div></div><button className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-olive)] font-display text-sm text-white" type="button" aria-label="Hồ sơ quản trị">K</button></header><main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-2 font-body text-sm font-semibold uppercase tracking-[.14em] text-[var(--color-olive)]">{config.section}</p><h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{config.title}</h2><p className="mt-2 max-w-3xl font-body text-sm leading-6 text-[#74776f]">{config.description}</p></div><button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white hover:bg-[var(--color-olive-dark)]" type="button" onClick={() => setFormOpen((current) => !current)}><i className="bi bi-plus-lg mr-2" aria-hidden="true" />{config.addLabel}</button></div>{formOpen && <form className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-5" onSubmit={addRow}><label className="block max-w-xl"><span className="mb-1.5 block font-body text-sm font-medium">{config.columns[0]}</span><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`Nhập ${config.columns[0].toLowerCase()}`} /></label><div className="mt-4 flex gap-3"><button className="admin-primary-action inline-flex min-h-10 rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white" type="submit">Lưu</button><button className="inline-flex min-h-10 rounded-xl border border-[#dedbd0] px-5 font-body text-sm" type="button" onClick={() => setFormOpen(false)}>Hủy</button></div></form>}<section className="mt-6 overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white"><div className="flex flex-col gap-3 border-b border-[#eeeae0] p-5 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-display text-lg font-semibold">Danh sách dữ liệu</h3><p className="mt-1 font-body text-sm text-[#74776f]">{sortedRows.length} bản ghi hiển thị.</p></div><label className="relative min-w-0 sm:w-80"><span className="sr-only">Tìm kiếm</span><i className="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8b8d86]" aria-hidden="true" /><input className="min-h-10 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] pl-10 pr-3 font-body text-sm" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm trong danh sách" /></label></div>{sortedRows.length ? <><div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left"><thead className="bg-[#fcfbf7]"><tr><th className="px-4 py-3 font-body text-sm font-semibold">STT</th>{config.columns.map((column, index) => <th className="px-4 py-3 font-body text-sm font-semibold" key={column}><button className="inline-flex items-center gap-1.5" type="button" onClick={() => setSort((current) => ({ index, ascending: current.index === index ? !current.ascending : true }))}>{column}<span className="text-xs text-[#98968c]">{sort.index === index ? (sort.ascending ? '↑' : '↓') : '↕'}</span></button></th>)}<th className="px-4 py-3 text-right font-body text-sm font-semibold">Thao tác</th></tr></thead><tbody>{pagedRows.map((row, rowIndex) => <tr className="border-t border-[#eeeae0]" key={`${row.join('-')}-${rowIndex}`}><td className="px-4 py-3 font-body text-sm text-[#74776f]">{rowIndex + 1}</td>{row.map((value, cellIndex) => <td className="px-4 py-3 font-body text-sm" key={`${cellIndex}-${value}`}>{cellIndex === row.length - 1 ? <span className="inline-flex rounded-full bg-[#edf7ef] px-2.5 py-1 text-xs font-semibold text-[#39733e]">{value}</span> : value}</td>)}<td className="px-4 py-3 text-right"><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8b8d86] hover:bg-[#f1e8e5] hover:text-[#a33d32]" type="button" aria-label={`Xóa ${row[0]}`} onClick={() => setRows((current) => current.filter((_, index) => index !== rowIndex))}><i className="bi bi-trash3" aria-hidden="true" /></button></td></tr>)}</tbody><tfoot><AdminSummaryRow rows={filteredRows} numericColumns={numericModuleColumns} columnCount={config.columns.length + 2} /></tfoot></table></div><AdminTableFooter total={sortedRows.length} pageSize={pageSize} onPageSizeChange={setPageSize} /></> : <div className="px-5 py-14 text-center"><i className="bi bi-inbox text-3xl text-[var(--color-olive)]" aria-hidden="true" /><h3 className="mt-3 font-display text-lg font-semibold">{config.empty}</h3><p className="mt-2 font-body text-sm text-[#74776f]">Dữ liệu sẽ xuất hiện tại đây sau khi kết nối backend.</p></div>}</section></main></div></div>
+}
+
+function AdminBooksPage({ managementView }: { managementView: BookManagementView }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [formOpen, setFormOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [formValues, setFormValues] = useState<Record<AdminBookKey, string>>(emptyAdminBookForm)
+  const [formIssues, setFormIssues] = useState<ImportIssue[]>([])
+  const [books, setBooks] = useState<AdminBook[]>([])
+  const [importReport, setImportReport] = useState<ImportReport | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState<AdminBookFilters>(emptyAdminBookFilters)
+  const [bookSort, setBookSort] = useState<{ key: AdminBookSortKey; ascending: boolean }>({ key: 'title', ascending: true })
+  const [hiddenBookKeys, setHiddenBookKeys] = useState<string[]>([])
+  const [editingBookKey, setEditingBookKey] = useState<string | null>(null)
+  const [editingBook, setEditingBook] = useState<AdminBook | null>(null)
+  const [pageSize, setPageSize] = useState(10)
+  const [issuePageSize, setIssuePageSize] = useState(10)
+  const visibleBooks = books.filter((book) => {
+    const searchable = `${book.title} ${book.author} ${book.isbn}`.toLowerCase()
+    const minSalePrice = parseAdminNumber(filters.minSalePrice)
+    const maxSalePrice = parseAdminNumber(filters.maxSalePrice)
+    const minUnitPrice = parseAdminNumber(filters.minUnitPrice)
+    const maxUnitPrice = parseAdminNumber(filters.maxUnitPrice)
+    return searchable.includes(query.trim().toLowerCase()) &&
+      (!filters.author || book.author === filters.author) &&
+      (!filters.format || book.format === filters.format) &&
+      (!filters.line || book.line === filters.line) &&
+      (!filters.category || book.category === filters.category) &&
+      (filters.stock === 'all' || (filters.stock === 'in-stock' ? book.quantity > 0 : book.quantity === 0)) &&
+      (minSalePrice === null || book.salePrice >= minSalePrice) &&
+      (maxSalePrice === null || book.salePrice <= maxSalePrice) &&
+      (minUnitPrice === null || (book.unitPrice !== null && book.unitPrice >= minUnitPrice)) &&
+      (maxUnitPrice === null || (book.unitPrice !== null && book.unitPrice <= maxUnitPrice))
+  })
+  const filterOptions = {
+    authors: [...new Set(books.map((book) => book.author).filter(Boolean))],
+    formats: [...new Set(books.map((book) => book.format).filter(Boolean))],
+    lines: [...new Set(books.map((book) => book.line).filter(Boolean))],
+    categories: [...new Set(books.map((book) => book.category).filter(Boolean))],
+  }
+  const sortedVisibleBooks = [...visibleBooks].sort((first, second) => {
+    const firstValue = bookSort.key === 'stock' ? first.quantity : first[bookSort.key]
+    const secondValue = bookSort.key === 'stock' ? second.quantity : second[bookSort.key]
+    const result = typeof firstValue === 'number' && typeof secondValue === 'number'
+      ? firstValue - secondValue
+      : String(firstValue ?? '').localeCompare(String(secondValue ?? ''), 'vi', { numeric: true })
+    return bookSort.ascending ? result : -result
+  })
+  const pagedVisibleBooks = sortedVisibleBooks.slice(0, pageSize)
+  const pagedImportIssues = (importReport?.issues ?? []).slice(0, issuePageSize)
+  const bookColumns: Array<[string, AdminBookSortKey]> = [['ISBN', 'isbn'], ['Tên sách', 'title'], ['Tác giả', 'author'], ['Số lượng', 'quantity'], ['Đơn giá nhập', 'unitPrice'], ['Giá bán', 'salePrice'], ['Thể thức', 'format'], ['Dòng sách', 'line'], ['Thể loại', 'category'], ['Tồn kho', 'stock']]
+  const renderBookSortButton = (label: string, key: AdminBookSortKey) => <button className="inline-flex items-center gap-1.5 whitespace-nowrap" type="button" onClick={() => setBookSort((current) => ({ key, ascending: current.key === key ? !current.ascending : true }))}>{label}<span className="text-xs text-[#98968c]">{bookSort.key === key ? (bookSort.ascending ? '↑' : '↓') : '↕'}</span></button>
+  const getBookKey = (book: AdminBook) => `${book.isbn}-${book.title}`
+  const saveEditedBook = () => {
+    if (!editingBook || !editingBookKey) return
+    setBooks((current) => current.map((book) => getBookKey(book) === editingBookKey ? editingBook : book))
+    setEditingBook(null)
+    setEditingBookKey(null)
+  }
+  const submitSingleBook = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const issues = validateAdminBook(formValues, 2)
+    setFormIssues(issues)
+    if (issues.length) return
+    setBooks((current) => [...current, toAdminBook(formValues)])
+    setFormValues(emptyAdminBookForm)
+    setFormOpen(false)
+  }
+  const importBooksFile = async (file: File) => {
+    setImporting(true)
+    try {
+      const { readSheet } = await import('read-excel-file/browser')
+      const rows = await readSheet(file, 'Sách') as unknown[][]
+      const headerRow = (rows[0] ?? []).map((value) => String(value ?? '').trim())
+      const mappedHeaders = headerRow.map((header) => adminHeaderMap.get(normalizeAdminHeader(header)) ?? null)
+      const missingHeaders = adminBookFields.filter((field) => field.required && !mappedHeaders.includes(field.key))
+      const issues: ImportIssue[] = missingHeaders.map((field) => ({ row: 1, field: field.label, message: 'Thiếu cột bắt buộc trong file Excel.' }))
+      const validRows: AdminBook[] = []
+      rows.slice(1).forEach((row, index) => {
+        const values = { ...emptyAdminBookForm }
+        mappedHeaders.forEach((key, columnIndex) => { if (key) values[key] = String(row[columnIndex] ?? '').trim() })
+        if (!Object.values(values).some(Boolean)) return
+        const rowIssues = validateAdminBook(values, index + 2)
+        issues.push(...rowIssues)
+        if (!rowIssues.length) validRows.push(toAdminBook(values))
+      })
+      setBooks((current) => [...current, ...validRows])
+      setImportReport({ fileName: file.name, total: rows.length > 1 ? rows.slice(1).filter((row) => row.some((value) => String(value ?? '').trim())).length : 0, valid: validRows.length, invalid: new Set(issues.map((issue) => issue.row)).size, issues })
+    } catch {
+      setImportReport({ fileName: file.name, total: 0, valid: 0, invalid: 1, issues: [{ row: 0, field: 'File', message: 'Không thể đọc file. Hãy dùng file .xlsx, .xls hoặc .csv theo mẫu của hệ thống.' }] })
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return <div className="admin-shell flex min-h-screen bg-[#f7f7f2] text-[var(--color-ink)]">
+    <aside className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex w-72 -translate-x-full flex-col border-r border-[#e5e2d7] bg-white transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'is-open translate-x-0' : ''}`}>
+      <div className="flex h-20 items-center justify-between border-b border-[#eeeae0] px-6"><a className="font-display text-lg font-semibold tracking-[.08em] text-[var(--color-ink)]" href="/#home">LINERY <span className="font-body text-xs font-normal tracking-[.18em] text-[var(--color-olive)]">QUẢN TRỊ</span></a><button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#dedbd0] text-[var(--color-ink)] lg:hidden" type="button" aria-label="Đóng menu quản trị" onClick={() => setSidebarOpen(false)}><i className="bi bi-x-lg" aria-hidden="true" /></button></div>
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Điều hướng quản trị"><p className="px-3 pb-2 pt-3 font-body text-xs font-semibold uppercase tracking-[.14em] text-[#98968c]">Khu vực quản trị</p><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" href="/admin"><i className="bi bi-grid-1x2-fill" aria-hidden="true" />Tổng quan</a><div><a className="flex items-center justify-between gap-3 rounded-xl bg-[rgba(155,148,47,.12)] px-3 py-2.5 font-body text-sm font-semibold text-[var(--color-olive-dark)]" href="/admin/books" aria-current="page"><span className="flex items-center gap-3"><i className="bi bi-book" aria-hidden="true" />Quản lý sách</span><i className="bi bi-chevron-down text-xs" aria-hidden="true" /></a><AdminBookSubnav pathname={window.location.pathname} /></div><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" href="/admin/orders"><i className="bi bi-bag" aria-hidden="true" />Đơn hàng</a><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" href="/admin/authors"><i className="bi bi-people" aria-hidden="true" />Tác giả</a><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" href="/admin/news"><i className="bi bi-newspaper" aria-hidden="true" />Tin tức</a><p className="px-3 pb-2 pt-7 font-body text-xs font-semibold uppercase tracking-[.14em] text-[#98968c]">Hệ thống</p><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" href="/admin/settings"><i className="bi bi-sliders" aria-hidden="true" />Cài đặt</a></nav>
+      <div className="border-t border-[#eeeae0] p-4"><a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" href="/#home"><i className="bi bi-arrow-left" aria-hidden="true" />Về cửa hàng</a></div>
+    </aside>
+    {sidebarOpen && <button className="fixed inset-0 z-30 bg-[rgba(31,42,36,.32)] lg:hidden" type="button" aria-label="Đóng menu quản trị" onClick={() => setSidebarOpen(false)} />}
+    <div className="min-w-0 flex-1"><header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#e5e2d7] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8"><div className="flex items-center gap-3"><button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dedbd0] text-[var(--color-ink)] lg:hidden" type="button" aria-label="Mở menu quản trị" onClick={() => setSidebarOpen(true)}><i className="bi bi-list" aria-hidden="true" /></button><div><p className="font-body text-sm text-[#8b8d86]">Quản trị</p><h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Sách</h1></div></div><button className="admin-primary-icon inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-olive)] font-display text-sm text-white" type="button" aria-label="Hồ sơ quản trị">K</button></header>
+      <main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8">{managementView === 'books' && <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-2 font-body text-sm font-semibold uppercase tracking-[.14em] text-[var(--color-olive)]">Danh mục</p><h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">{managementView === 'books' ? 'Quản lý sách' : managementView === 'categories' ? 'Quản lý danh mục' : 'Quản lý khổ sách'}</h2><p className="mt-2 max-w-2xl font-body text-sm leading-6 text-[#74776f]">Quản lý dữ liệu catalog của Linery theo từng nhóm nghiệp vụ.</p></div><div className="flex flex-col gap-2 sm:flex-row"><button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--color-olive)] px-5 font-body text-sm font-medium text-[var(--color-olive)] transition-colors hover:bg-[rgba(155,148,47,.1)]" type="button" onClick={() => { setFormOpen(!formOpen); setImportOpen(false) }}><i className="bi bi-plus-lg mr-2" aria-hidden="true" />Thêm sách</button><button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white transition-colors hover:bg-[var(--color-olive-dark)]" type="button" onClick={() => { setImportOpen(!importOpen); setFormOpen(false) }}><i className="bi bi-file-earmark-spreadsheet mr-2" aria-hidden="true" />Nhập Excel</button></div></div>}
+        {managementView !== 'books' ? <AdminLookupPanel view={managementView} /> : <>
+        <section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-4 shadow-[0_10px_30px_rgba(31,42,36,.04)] sm:p-5" aria-label="Công cụ tìm kiếm sách"><div className="flex flex-col gap-3 lg:flex-row lg:items-center"><label className="relative min-w-0 flex-1"><span className="sr-only">Tìm kiếm sách</span><i className="bi bi-search pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b8d86]" aria-hidden="true" /><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] py-2.5 pl-11 pr-4 font-body text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-olive)] focus:ring-2 focus:ring-[rgba(155,148,47,.14)]" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm theo tên sách, ISBN hoặc tác giả" /></label><button className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 font-body text-sm transition-colors ${filtersOpen ? 'border-[var(--color-olive)] bg-[rgba(155,148,47,.08)] text-[var(--color-olive-dark)]' : 'border-[#dedbd0] text-[var(--color-ink)] hover:border-[var(--color-olive)] hover:bg-[rgba(155,148,47,.08)]'}`} type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}><i className="bi bi-funnel" aria-hidden="true" />Bộ lọc</button></div></section>
+        {filtersOpen && <section className="mt-3 rounded-2xl border border-[#e6e2d7] bg-white p-4 sm:p-5" aria-label="Bộ lọc chi tiết"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Tác giả</span><select className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" value={filters.author} onChange={(event) => setFilters((current) => ({ ...current, author: event.target.value }))}><option value="">Tất cả tác giả</option>{filterOptions.authors.map((option) => <option value={option} key={option}>{option}</option>)}</select></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Thể thức</span><select className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" value={filters.format} onChange={(event) => setFilters((current) => ({ ...current, format: event.target.value }))}><option value="">Tất cả thể thức</option>{filterOptions.formats.map((option) => <option value={option} key={option}>{option}</option>)}</select></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Dòng sách</span><select className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" value={filters.line} onChange={(event) => setFilters((current) => ({ ...current, line: event.target.value }))}><option value="">Tất cả dòng sách</option>{filterOptions.lines.map((option) => <option value={option} key={option}>{option}</option>)}</select></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Thể loại</span><select className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}><option value="">Tất cả thể loại</option>{filterOptions.categories.map((option) => <option value={option} key={option}>{option}</option>)}</select></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Tồn kho</span><select className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" value={filters.stock} onChange={(event) => setFilters((current) => ({ ...current, stock: event.target.value as AdminBookFilters['stock'] }))}><option value="all">Tất cả trạng thái</option><option value="in-stock">Còn hàng</option><option value="out-of-stock">Hết hàng</option></select></label><div><span className="mb-1.5 block font-body text-sm font-medium">Giá bán</span><div className="grid grid-cols-2 gap-2"><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3 font-body text-sm" type="number" min="0" placeholder="Từ" value={filters.minSalePrice} onChange={(event) => setFilters((current) => ({ ...current, minSalePrice: event.target.value }))} /><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3 font-body text-sm" type="number" min="0" placeholder="Đến" value={filters.maxSalePrice} onChange={(event) => setFilters((current) => ({ ...current, maxSalePrice: event.target.value }))} /></div></div><div><span className="mb-1.5 block font-body text-sm font-medium">Đơn giá nhập</span><div className="grid grid-cols-2 gap-2"><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3 font-body text-sm" type="number" min="0" placeholder="Từ" value={filters.minUnitPrice} onChange={(event) => setFilters((current) => ({ ...current, minUnitPrice: event.target.value }))} /><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3 font-body text-sm" type="number" min="0" placeholder="Đến" value={filters.maxUnitPrice} onChange={(event) => setFilters((current) => ({ ...current, maxUnitPrice: event.target.value }))} /></div></div></div><div className="mt-4 flex justify-between gap-3 border-t border-[#eeeae0] pt-4"><p className="font-body text-sm text-[#74776f]">Hiển thị {visibleBooks.length}/{books.length} sách</p><button className="font-body text-sm font-medium text-[var(--color-olive-dark)]" type="button" onClick={() => { setFilters(emptyAdminBookFilters); setQuery('') }}>Xóa bộ lọc</button></div></section>}
+        {formOpen && <section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><h3 className="font-display text-lg font-semibold">Thêm một cuốn sách</h3><p className="mt-1 font-body text-sm text-[#74776f]">Các trường có dấu <span className="font-semibold text-[var(--color-olive-dark)]">*</span> là bắt buộc.</p></div><button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#dedbd0] text-[var(--color-ink)]" type="button" aria-label="Đóng form thêm sách" onClick={() => setFormOpen(false)}><i className="bi bi-x-lg" aria-hidden="true" /></button></div><form className="mt-5" onSubmit={submitSingleBook}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{adminBookFields.map((field) => <label className="block" key={field.key}><span className="mb-1.5 block font-body text-sm font-medium text-[var(--color-ink)]">{field.label}{field.required && <span className="ml-1 text-[var(--color-olive-dark)]">*</span>}</span><input className="block min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-olive)] focus:ring-2 focus:ring-[rgba(155,148,47,.14)]" type={field.input} min={field.input === 'number' ? '0' : undefined} value={formValues[field.key]} onChange={(event) => setFormValues((current) => ({ ...current, [field.key]: event.target.value }))} placeholder={field.required ? `Nhập ${field.label.toLowerCase()}` : 'Không bắt buộc'} />{!field.required && <span className="mt-1 block font-body text-xs text-[#8b8d86]">Không bắt buộc</span>}</label>)}</div>{formIssues.length > 0 && <div className="mt-4 rounded-xl border border-[#d9a6a0] bg-[#fff6f4] p-4"><p className="font-body text-sm font-semibold text-[#a33d32]">Chưa thể thêm sách</p><ul className="mt-2 space-y-1 font-body text-sm text-[#8c4038]">{formIssues.map((issue, index) => <li key={`${issue.field}-${index}`}>{issue.field}: {issue.message}</li>)}</ul></div>}<div className="mt-5 flex flex-col justify-end gap-3 sm:flex-row"><button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#dedbd0] px-5 font-body text-sm text-[var(--color-ink)]" type="button" onClick={() => setFormOpen(false)}>Hủy</button><button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white transition-colors hover:bg-[var(--color-olive-dark)]" type="submit">Lưu sách</button></div></form></section>}
+        {importOpen && <section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><h3 className="font-display text-lg font-semibold">Nhập sách hàng loạt từ Excel</h3><p className="mt-1 max-w-2xl font-body text-sm leading-6 text-[#74776f]">Tải mẫu, điền dữ liệu trong sheet Sách rồi tải lại file. Dòng đúng sẽ được giữ lại; dòng lỗi sẽ được báo riêng để sửa.</p></div><button className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--color-olive)] px-4 font-body text-sm font-medium text-[var(--color-olive)]" type="button" onClick={() => downloadAdminWorkbook()}><i className="bi bi-download mr-2" aria-hidden="true" />Tải file mẫu Excel</button></div><label className="mt-5 flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-olive)] bg-[rgba(155,148,47,.06)] px-4 text-center transition-colors hover:bg-[rgba(155,148,47,.12)]"><i className="bi bi-cloud-arrow-up text-2xl text-[var(--color-olive)]" aria-hidden="true" /><span className="mt-2 font-body text-sm font-medium text-[var(--color-ink)]">{importing ? 'Đang kiểm tra file...' : 'Chọn file Excel để kiểm tra'}</span><span className="mt-1 font-body text-xs text-[#74776f]">.xlsx, .xls hoặc .csv</span><input className="sr-only" type="file" accept=".xlsx,.xls,.csv" disabled={importing} onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void importBooksFile(file); event.currentTarget.value = '' }} /></label></section>}
+        {importReport && <section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><h3 className="font-display text-lg font-semibold">Báo cáo nhập file</h3><p className="mt-1 font-body text-sm text-[#74776f]">{importReport.fileName}</p></div><button className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--color-olive)] px-4 font-body text-sm font-medium text-[var(--color-olive)]" type="button" onClick={() => downloadAdminWorkbook(importReport)}><i className="bi bi-download mr-2" aria-hidden="true" />Tải báo cáo lỗi</button></div><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-[#f6f5ed] p-4"><p className="font-body text-sm text-[#74776f]">Tổng dòng</p><p className="mt-1 font-display text-2xl font-semibold">{importReport.total}</p></div><div className="rounded-xl bg-[#f1f8f1] p-4"><p className="font-body text-sm text-[#39733e]">Hợp lệ</p><p className="mt-1 font-display text-2xl font-semibold text-[#39733e]">{importReport.valid}</p></div><div className="rounded-xl bg-[#fff4f2] p-4"><p className="font-body text-sm text-[#a33d32]">Có lỗi</p><p className="mt-1 font-display text-2xl font-semibold text-[#a33d32]">{importReport.invalid}</p></div></div>{importReport.issues.length > 0 && <><div className="mt-5 overflow-x-auto rounded-xl border border-[#ead7d3]"><table className="min-w-full text-left"><thead className="bg-[#fff8f6]"><tr><th className="px-4 py-3 font-body text-sm font-semibold">STT</th><th className="px-4 py-3 font-body text-sm font-semibold">Dòng</th><th className="px-4 py-3 font-body text-sm font-semibold">Trường</th><th className="px-4 py-3 font-body text-sm font-semibold">Lỗi cần sửa</th></tr></thead><tbody>{pagedImportIssues.map((issue, index) => <tr className="border-t border-[#f0e1de]" key={index}><td className="px-4 py-3 font-body text-sm">{index + 1}</td><td className="px-4 py-3 font-body text-sm">{issue.row || '—'}</td><td className="px-4 py-3 font-body text-sm">{issue.field}</td><td className="px-4 py-3 font-body text-sm text-[#8c4038]">{issue.message}</td></tr>)}</tbody><tfoot><tr className="border-t border-[#ead7d3] bg-[#fff8f6] font-semibold"><td className="px-4 py-3 font-body text-sm text-[#74776f]">Tổng</td><td className="px-4 py-3 font-body text-sm">{importReport.issues.length} lỗi</td><td className="px-4 py-3 font-body text-sm">—</td><td className="px-4 py-3 font-body text-sm">—</td></tr></tfoot></table></div><AdminTableFooter total={importReport.issues.length} pageSize={issuePageSize} onPageSizeChange={setIssuePageSize} /></>}{importReport.issues.length === 0 && <p className="mt-5 font-body text-sm font-medium text-[#39733e]">Tất cả dòng dữ liệu đều hợp lệ.</p>}</section>}
+        {visibleBooks.length > 0 ? <section className="mt-6 overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white"><div className="flex items-center justify-between gap-4 border-b border-[#eeeae0] p-5"><div><h3 className="font-display text-lg font-semibold">Sách đã nhập</h3><p className="mt-1 font-body text-sm text-[#74776f]">{visibleBooks.length} bản ghi trong phiên làm việc này. Bấm tên cột để sắp xếp.</p></div></div><div className="overflow-x-auto"><table className="min-w-[1500px] w-full text-left"><thead className="bg-[#fcfbf7]"><tr><th className="px-4 py-3 font-body text-sm font-semibold">STT</th>{bookColumns.map(([label, key]) => <th className="px-4 py-3 font-body text-sm font-semibold" key={key}>{renderBookSortButton(label, key)}{key === 'title' && <input className="mt-2 min-h-8 w-36 rounded-lg border border-[#dedbd0] bg-white px-2.5 font-body text-xs font-normal" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm nhanh" aria-label="Tìm nhanh theo tên sách" />}</th>)}<th className="px-4 py-3 font-body text-sm font-semibold">Liên kết</th><th className="px-4 py-3 text-right font-body text-sm font-semibold">Thao tác</th></tr></thead><tbody>{pagedVisibleBooks.map((book, index) => { const bookKey = getBookKey(book); const isEditing = editingBookKey === bookKey; const isHidden = hiddenBookKeys.includes(bookKey); return <tr className={`border-t border-[#eeeae0] ${isHidden ? 'bg-[#faf9f5] text-[#98968c]' : ''}`} key={`${bookKey}-${index}`}><td className="px-4 py-3 font-body text-sm text-[#74776f]">{index + 1}</td><td className="px-4 py-3 font-body text-sm">{book.isbn || '—'}</td><td className="max-w-[260px] px-4 py-3 font-body text-sm font-medium">{isEditing ? <input className="min-h-9 w-full rounded-lg border border-[var(--color-olive)] px-2.5 font-body text-sm" value={editingBook?.title ?? ''} onChange={(event) => setEditingBook((current) => current ? { ...current, title: event.target.value } : current)} /> : book.title}</td><td className="px-4 py-3 font-body text-sm">{isEditing ? <input className="min-h-9 w-40 rounded-lg border border-[var(--color-olive)] px-2.5 font-body text-sm" value={editingBook?.author ?? ''} onChange={(event) => setEditingBook((current) => current ? { ...current, author: event.target.value } : current)} /> : book.author}</td><td className="px-4 py-3 font-body text-sm">{isEditing ? <input className="min-h-9 w-24 rounded-lg border border-[var(--color-olive)] px-2.5 font-body text-sm" type="number" min="0" value={editingBook?.quantity ?? 0} onChange={(event) => setEditingBook((current) => current ? { ...current, quantity: Number(event.target.value) } : current)} /> : book.quantity}</td><td className="px-4 py-3 font-body text-sm">{book.unitPrice === null ? '—' : `${book.unitPrice.toLocaleString('vi-VN')}₫`}</td><td className="px-4 py-3 font-body text-sm">{isEditing ? <input className="min-h-9 w-28 rounded-lg border border-[var(--color-olive)] px-2.5 font-body text-sm" type="number" min="0" value={editingBook?.salePrice ?? 0} onChange={(event) => setEditingBook((current) => current ? { ...current, salePrice: Number(event.target.value) } : current)} /> : `${book.salePrice.toLocaleString('vi-VN')}₫`}</td><td className="px-4 py-3 font-body text-sm">{book.format || '—'}</td><td className="px-4 py-3 font-body text-sm">{book.line || '—'}</td><td className="px-4 py-3 font-body text-sm">{book.category || '—'}</td><td className="px-4 py-3 font-body text-sm"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${book.quantity > 0 ? 'bg-[#edf7ef] text-[#39733e]' : 'bg-[#fff4f2] text-[#a33d32]'}`}>{book.quantity > 0 ? 'Còn hàng' : 'Hết hàng'}</span>{isHidden && <span className="ml-2 inline-flex rounded-full bg-[#f2f1ec] px-2.5 py-1 text-xs font-semibold text-[#8b8d86]">Tạm ẩn</span>}</td><td className="px-4 py-3 font-body text-sm">{book.link ? <a className="text-[var(--color-olive-dark)] underline" href={book.link} target="_blank" rel="noreferrer">Mở link</a> : '—'}</td><td className="px-4 py-3 text-right"><div className="flex justify-end gap-1">{isEditing ? <><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#39733e] hover:bg-[#edf7ef]" type="button" aria-label={`Lưu ${book.title}`} onClick={saveEditedBook}><i className="bi bi-check-lg" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8b8d86] hover:bg-[#f5f3ec]" type="button" aria-label={`Hủy sửa ${book.title}`} onClick={() => { setEditingBook(null); setEditingBookKey(null) }}><i className="bi bi-x-lg" aria-hidden="true" /></button></> : <><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec]" type="button" aria-label={`Sửa ${book.title}`} onClick={() => { setEditingBookKey(bookKey); setEditingBook({ ...book }) }}><i className="bi bi-pencil" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#74776f] hover:bg-[#f5f3ec]" type="button" aria-label={isHidden ? `Hiện ${book.title}` : `Tạm ẩn ${book.title}`} onClick={() => setHiddenBookKeys((current) => current.includes(bookKey) ? current.filter((key) => key !== bookKey) : [...current, bookKey])}><i className={`bi ${isHidden ? 'bi-eye' : 'bi-eye-slash'}`} aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#8b8d86] hover:bg-[#f1e8e5] hover:text-[#a33d32]" type="button" aria-label={`Xóa ${book.title}`} onClick={() => setBooks((current) => current.filter((currentBook) => getBookKey(currentBook) !== bookKey))}><i className="bi bi-trash3" aria-hidden="true" /></button></>}</div></td></tr> })}</tbody><tfoot><AdminSummaryRow rows={visibleBooks.map((book) => ["", book.isbn, book.title, book.author, String(book.quantity), book.unitPrice === null ? "" : String(book.unitPrice), String(book.salePrice), book.format, book.line, book.category, book.quantity > 0 ? "" : "", book.link, ""])} numericColumns={[4]} columnCount={13} /></tfoot></table></div><AdminTableFooter total={sortedVisibleBooks.length} pageSize={pageSize} onPageSizeChange={setPageSize} /></section> : !formOpen && !importOpen && <section className="mt-6 rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-8"><div className="mx-auto max-w-xl text-center"><span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(155,148,47,.12)] text-2xl text-[var(--color-olive)]"><i className="bi bi-book" aria-hidden="true" /></span><h3 className="mt-5 font-display text-lg font-semibold">Chưa có dữ liệu sách</h3><p className="mt-2 font-body text-sm leading-6 text-[#74776f]">Các trường sẽ được quản lý theo bảng dữ liệu: ISBN, tác phẩm, tác giả, số lượng, đơn giá, giá bán, link, thể thức, dòng sách và thể loại.</p><div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row"><button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--color-olive)] px-5 font-body text-sm font-medium text-[var(--color-olive)] transition-colors hover:bg-[var(--color-olive)] hover:text-white" type="button" onClick={() => { setImportOpen(true); setFormOpen(false) }}><i className="bi bi-cloud-arrow-up mr-2" aria-hidden="true" />Nhập dữ liệu</button><button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white transition-colors hover:bg-[var(--color-olive-dark)]" type="button" onClick={() => setFormOpen(true)}><i className="bi bi-plus-lg mr-2" aria-hidden="true" />Thêm một cuốn sách</button></div></div></section>}
+        </>}
+      </main></div>
+  </div>
+}
+
+function AdminDashboard() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  if (window.location.pathname.startsWith('/admin/books')) return <AdminBooksPage managementView={getAdminBookViewFromPath(window.location.pathname)} />
+  if (window.location.pathname === '/admin/authors') return <AdminAuthorsPage pathname={window.location.pathname} />
+  const moduleConfig = adminModuleConfigs[window.location.pathname]
+  if (moduleConfig) return <AdminModulePage pathname={window.location.pathname} config={moduleConfig} />
+
+  return <div className="admin-shell flex min-h-screen bg-[#f7f7f2] text-[var(--color-ink)]">
+    <aside id="admin-sidebar" className={`admin-sidebar fixed inset-y-0 left-0 z-40 flex w-72 -translate-x-full flex-col border-r border-[#e5e2d7] bg-white transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'is-open translate-x-0' : ''}`}>
+      <div className="flex h-20 items-center justify-between border-b border-[#eeeae0] px-6">
+        <a className="font-display text-lg font-semibold tracking-[.08em] text-[var(--color-ink)]" href="/#home">LINERY <span className="font-body text-[10px] font-normal tracking-[.18em] text-[var(--color-olive)]">QUẢN TRỊ</span></a>
+        <button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#dedbd0] text-[var(--color-ink)] lg:hidden" type="button" aria-label="Close admin navigation" onClick={() => setSidebarOpen(false)}><i className="bi bi-x-lg" aria-hidden="true" /></button>
+      </div>
+      <AdminManagementSidebar pathname={window.location.pathname} />
+      <div className="border-t border-[#eeeae0] p-4">
+        <a className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm text-[#62655f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]" href="/#home"><i className="bi bi-arrow-left" aria-hidden="true" />Về cửa hàng</a>
+      </div>
+    </aside>
+    {sidebarOpen && <button className="fixed inset-0 z-30 bg-[rgba(31,42,36,.32)] lg:hidden" type="button" aria-label="Close admin navigation" onClick={() => setSidebarOpen(false)} />}
+    <div className="min-w-0 flex-1">
+      <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#e5e2d7] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3">
+          <button className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#dedbd0] text-[var(--color-ink)] lg:hidden" type="button" aria-label="Open admin navigation" onClick={() => setSidebarOpen(true)}><i className="bi bi-list" aria-hidden="true" /></button>
+          <div><p className="font-body text-xs text-[#8b8d86]">Quản trị</p><h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Tổng quan</h1></div>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button className="hidden h-10 items-center gap-2 rounded-xl border border-[#dedbd0] px-3 font-body text-sm text-[#62655f] sm:inline-flex" type="button"><i className="bi bi-question-circle" aria-hidden="true" />Trợ giúp</button>
+          <button className="admin-primary-icon inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-olive)] font-display text-sm text-white" type="button" aria-label="Hồ sơ quản trị">K</button>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8">
+        <section className="mb-6 rounded-2xl border border-[#e6e2d7] bg-white p-5 shadow-[0_10px_30px_rgba(31,42,36,.04)] sm:p-7">
+          <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
+            <div><p className="mb-2 font-body text-xs font-semibold uppercase tracking-[.14em] text-[var(--color-olive)]">Linery Books</p><h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Chào buổi sáng, Kim</h2><p className="mt-2 max-w-xl font-body text-sm leading-6 text-[#74776f]">Không gian quản trị đã sẵn sàng. Kết nối Supabase để bắt đầu quản lý danh mục sách, đơn hàng, tác giả và nội dung biên tập.</p></div>
+          <a className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white transition-colors hover:bg-[var(--color-olive-dark)]" href="/admin/books"><i className="bi bi-plus-lg mr-2" aria-hidden="true" />Thêm cuốn sách đầu tiên</a>
+          </div>
+        </section>
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Store metrics">
+          {[['Tổng số sách','0','Thêm dữ liệu sách','bi-book'],['Đơn hàng','0','Chưa có đơn hàng','bi-bag'],['Tác giả','0','Thêm hồ sơ tác giả','bi-people'],['Bài viết tin tức','0','Tạo nội dung biên tập','bi-newspaper']].map(([label,value,meta,icon]) => <article className="rounded-2xl border border-[#e6e2d7] bg-white p-5" key={label}><div className="flex items-start justify-between"><div><p className={`font-body text-sm ${label === 'Đơn hàng' ? 'font-semibold text-[var(--color-ink)]' : 'text-[#74776f]'}`}>{label}</p><p className="mt-3 font-display text-2xl font-semibold tracking-tight">{value}</p></div><span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(155,148,47,.12)] text-lg text-[var(--color-olive)]"><i className={`bi ${icon}`} aria-hidden="true" /></span></div><p className="admin-metric-meta mt-4 font-body text-sm text-[#74776f]">{meta}</p></article>)}
+        </section>
+        <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,.85fr)]">
+          <article className="rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-6"><div className="flex items-center justify-between gap-4"><div><h2 className="font-display text-lg font-semibold">Đơn hàng gần đây</h2><p className="mt-1 font-body text-sm text-[#8b8d86]">Đơn hàng sẽ xuất hiện tại đây sau khi kết nối Supabase.</p></div><button className="font-body text-sm text-[var(--color-olive)]" type="button">Xem tất cả</button></div><div className="mt-6 rounded-xl border border-dashed border-[#d9d6c9] bg-[#fcfbf7] px-5 py-10 text-center"><i className="bi bi-inbox text-3xl text-[var(--color-olive)]" aria-hidden="true" /><h3 className="mt-3 font-display text-lg font-semibold">Chưa có đơn hàng</h3><p className="mx-auto mt-2 max-w-sm font-body text-sm leading-6 text-[#85877f]">Khi khách đặt hàng, thông tin thanh toán, giao nhận và khách hàng sẽ được hiển thị tại đây.</p></div></article>
+          <article className="rounded-2xl border border-[#e6e2d7] bg-white p-5 sm:p-6"><h2 className="font-display text-lg font-semibold">Bắt đầu thiết lập</h2><p className="mt-1 font-body text-sm text-[#8b8d86]">Thiết lập cửa hàng theo từng bước.</p><ol className="mt-6 space-y-4">{[['01','Tạo danh mục sách','Thêm sách, bìa, giá và các phân loại.','/admin/books'],['02','Thêm tác giả','Tạo trang tác giả và kết nối các tác phẩm đã chọn.','/admin/authors'],['03','Đăng bài viết tin tức','Chia sẻ ghi chú biên tập và gợi ý đọc sách.','/admin/news']].map(([number,title,description,href]) => <li className="flex gap-3" key={number}><span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[var(--color-olive)] font-body text-xs font-semibold text-white">{number}</span><div className="min-w-0"><a className="font-display text-sm font-semibold hover:text-[var(--color-olive)]" href={href}>{title}</a><p className="mt-1 font-body text-sm leading-5 text-[#85877f]">{description}</p></div></li>)}</ol></article>
+        </section>
+      </main>
+    </div>
+  </div>
+}
+
 export function App() {
   const [welcomeOpen, setWelcomeOpen] = useState(() => isEnhancedVariant && window.localStorage.getItem(welcomeStorageKey) !== 'true')
   const [language, setLanguage] = useState<'en' | 'vi'>(() => window.localStorage.getItem('linery-language') === 'vi' ? 'vi' : 'en')
@@ -1560,6 +2042,8 @@ export function App() {
   const [showScrollTop, setShowScrollTop] = useState(false)
   const previewCloseTimer = useRef<number | null>(null)
   const cartPulseTimer = useRef<number | null>(null)
+
+  if (view === 'admin') return <><SeoHead view={view} product={selectedProduct} news={selectedNews} author={selectedAuthor || 'Edward W. Said'} language={language} /><AdminDashboard /></>
 
   useEffect(() => {
     const syncRoute = () => {
@@ -1865,6 +2349,7 @@ export function App() {
   }
 
   return <>
+    <SeoHead view={view} product={selectedProduct} news={selectedNews} author={selectedAuthor || 'Edward W. Said'} language={language} />
     {isEnhancedVariant && welcomeOpen && <WelcomeScreen onSelectLanguage={selectLanguage} />}
     <div id="top" className={`page-shell ${quickViewAvailable && quickViewOpen ? 'utility-panel-active' : ''}`}>
     <Header cartCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)} cartPulse={cartPulse} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} onHome={showHome} onLogin={view === 'account' || isAuthenticated ? () => { showAccount(); setAccountMenuOpen((open) => !open) } : showLogin} onLogout={logout} onShop={showShop} onShopHover={(open) => setShopOpen(open)} onAllWriters={() => showAuthors('all')} onAuthors={() => showAuthors('authors')} onTranslators={() => showAuthors('translators')} onAllBooks={showAllBooks} onCollection={showCollection} onSearch={showSearch} onQuickView={toggleQuickView} onCart={showCart} quickViewOpen={quickViewOpen} quickViewAvailable={quickViewAvailable} activeView={view} shopOpen={shopOpen} writersOpen={writersOpen} onWritersHover={(open) => setWritersOpen(open)} onDesktopMenuHover={(open) => setHeroMotionOpen(open)} accountMenuOpen={accountMenuOpen} onAccountMenuToggle={() => setAccountMenuOpen(false)} accountTab={accountTab} onAccountTabChange={(tab) => { setAccountTab(tab); showAccount() }} accountMenuEnabled={isAuthenticated || view === 'account'} language={language} />

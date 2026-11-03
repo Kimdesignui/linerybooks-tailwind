@@ -1,0 +1,10 @@
+{
+  "name": "Linery Bookstore",
+  "short_name": "Linery",
+  "description": "A curated bookstore and independent press, crafted in Hanoi.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#9b942f",
+  "theme_color": "#9b942f",
+  "icons": []
+}
