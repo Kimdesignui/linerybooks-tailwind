@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ElementType, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ElementType, type FormEvent, type ReactNode } from 'react'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
 type Product = { image: string; gallery?: string[]; title: string; author: string; price: string; categories: string[]; publisher: string; writerType: 'Authors' | 'Translators'; year?: number; available?: boolean; limited?: boolean }
@@ -19,6 +19,12 @@ type ExcelCell = string | number | boolean | Date | null
 type BookManagementView = 'books' | 'categories' | 'formats'
 type AdminBookFilters = { author: string; format: string; line: string; category: string; stock: 'all' | 'in-stock' | 'out-of-stock'; minSalePrice: string; maxSalePrice: string; minUnitPrice: string; maxUnitPrice: string }
 const emptyAdminBookFilters: AdminBookFilters = { author: '', format: '', line: '', category: '', stock: 'all', minSalePrice: '', maxSalePrice: '', minUnitPrice: '', maxUnitPrice: '' }
+type AdminAuthorForm = { name: string; birthYear: string; deathYear: string; gender: string; representativeWorks: string; format: string; genre: string; topics: string; awards: string; bio: string; englishLink: string; imageLink: string }
+const emptyAdminAuthorForm: AdminAuthorForm = { name: '', birthYear: '', deathYear: '', gender: '', representativeWorks: '', format: '', genre: '', topics: '', awards: '', bio: '', englishLink: '', imageLink: '' }
+type AdminCatalogFormField = { key: keyof AdminAuthorForm; label: string; input?: 'text' | 'number' | 'url' | 'textarea'; required?: boolean; help?: string }
+const adminAuthorFormFields: AdminCatalogFormField[] = [
+  { key: 'name', label: 'Tên tác giả', required: true }, { key: 'birthYear', label: 'Năm sinh', input: 'number' }, { key: 'deathYear', label: 'Năm mất', input: 'number', help: 'Để trống nếu tác giả còn sống.' }, { key: 'gender', label: 'Giới tính' }, { key: 'format', label: 'Thể thức' }, { key: 'genre', label: 'Thể loại' }, { key: 'topics', label: 'Chủ đề' }, { key: 'englishLink', label: 'Link giới thiệu tiếng Anh', input: 'url' },
+]
 
 const siteName = 'Linery Bookstore'
 const siteDescription = 'Linery — hiệu sách tuyển chọn và independent press được xây dựng tại Hà Nội.'
@@ -1678,7 +1684,7 @@ function AdminLookupPanel({ view }: { view: Exclude<BookManagementView, 'books'>
   const [hiddenIds, setHiddenIds] = useState<string[]>([])
   const [pageSize, setPageSize] = useState(10)
   const [draggedId, setDraggedId] = useState<string | null>(null)
-  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'inside' | 'after' } | null>(null)
   const title = isCategory ? 'Quản lý danh mục' : 'Quản lý khổ sách'
   const description = isCategory ? 'Danh mục có thể phân cấp cha–con. Kéo một dòng và thả lên dòng khác để đưa danh mục vào cấp con.' : 'Quản lý kích thước thành phẩm dùng khi thêm sách và chuẩn hóa dữ liệu xuất bản.'
   const fieldLabel = isCategory ? 'Tên danh mục' : 'Tên khổ sách'
@@ -1750,13 +1756,12 @@ function AdminLookupPanel({ view }: { view: Exclude<BookManagementView, 'books'>
       const movingIds = new Set([draggedId, ...descendantIds])
       const targetItem = current.find((item) => item.id === targetId)
       if (!targetItem) return current
-      const targetDepth = getDepth(targetItem)
-      const nextParentId = draggedItem.parentId !== null ? (targetDepth === 0 ? null : targetItem.parentId) : draggedItem.parentId
+      const nextParentId = dropTarget.position === 'inside' ? targetItem.id : targetItem.parentId
       const movingItems = current.filter((item) => movingIds.has(item.id)).map((item) => item.id === draggedId ? { ...item, parentId: nextParentId } : item)
       const withoutMoving = current.filter((item) => !movingIds.has(item.id))
       const targetIndex = withoutMoving.findIndex((item) => item.id === targetId)
       if (targetIndex < 0) return current
-      const insertIndex = dropTarget.position === 'after' ? targetIndex + 1 : targetIndex
+      const insertIndex = dropTarget.position === 'after' || dropTarget.position === 'inside' ? targetIndex + 1 : targetIndex
       withoutMoving.splice(insertIndex, 0, ...movingItems)
       return withoutMoving
     })
@@ -1774,9 +1779,20 @@ function AdminLookupPanel({ view }: { view: Exclude<BookManagementView, 'books'>
 const getAdminBookViewFromPath = (pathname: string): BookManagementView => pathname === '/admin/books/categories' ? 'categories' : pathname === '/admin/books/formats' ? 'formats' : 'books'
 
 function AdminBookSubnav({ pathname }: { pathname: string }) {
-  const items: Array<[string, string, BookManagementView]> = [['Danh sách sách', '/admin/books', 'books'], ['Danh mục', '/admin/books/categories', 'categories'], ['Khổ sách', '/admin/books/formats', 'formats']]
+  const items: Array<[string, string, BookManagementView]> = [['Danh sách sách', '/admin/books', 'books'], ['Thêm sách', '/admin/books/new', 'books'], ['Danh mục', '/admin/books/categories', 'categories'], ['Khổ sách', '/admin/books/formats', 'formats']]
   const currentView = pathname.startsWith('/admin/books') ? getAdminBookViewFromPath(pathname) : null
   return <div className="ml-4 border-l border-[#e8e5da] pl-3">{items.map(([label, href, view]) => <a className={`flex items-center rounded-lg px-3 py-2 font-body text-sm ${currentView === view ? 'bg-[rgba(155,148,47,.12)] font-semibold text-[var(--color-olive-dark)]' : 'text-[#74776f] transition-colors hover:bg-[#f5f3ec] hover:text-[var(--color-ink)]'}`} href={href} aria-current={currentView === view ? 'page' : undefined} key={href}>{label}</a>)}</div>
+}
+
+function AdminBookCreatePage() {
+  const [values, setValues] = useState<Record<string, string>>({ isbn: '', title: '', author: '', series: '', coverPriceUsd: '', quantity: '', unitPrice: '', salePrice: '', exchangeRate: '', format: '', line: '', genre: '', topic: '', link: '', goodreads: '', coverFile: '' })
+  const [coverPreview, setCoverPreview] = useState('')
+  const fields = [['isbn', 'ISBN', 'text'], ['title', 'Tác phẩm', 'text'], ['author', 'Tác giả', 'text'], ['series', 'Series', 'text'], ['coverPriceUsd', 'Giá bìa (USD)', 'number'], ['quantity', 'Số lượng (quyển)', 'number'], ['unitPrice', 'Đơn giá nhập (VNĐ)', 'number'], ['salePrice', 'Giá bán (VNĐ)', 'number'], ['exchangeRate', 'Tỷ giá', 'number'], ['format', 'Thể thức', 'text'], ['line', 'Dòng sách', 'text'], ['genre', 'Thể loại', 'text'], ['topic', 'Chủ đề', 'text'], ['link', 'Link sách', 'url'], ['goodreads', 'Đánh giá Goodreads', 'number']] as const
+  return <AdminSimpleCreateShell title="Thêm sách" backHref="/admin/books" section="SÁCH" description="Nhập một bản ghi sách theo các trường đã xuất hiện trong các sheet Picador, Penguin UK, Penguin US và NYRB."><form className="grid gap-5" onSubmit={(event) => { event.preventDefault() }}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{fields.map(([key, label, type]) => <label className="block" key={key}><span className="mb-1.5 block font-body text-sm font-medium">{label}{['title', 'author'].includes(key) && <span className="ml-1 text-[var(--color-olive-dark)]">*</span>}</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" type={type} required={['title', 'author'].includes(key)} value={values[key]} onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.value }))} /></label>)}</div><label className="block max-w-md"><span className="mb-1.5 block font-body text-sm font-medium">Ảnh bìa</span><input className="block min-h-11 w-full cursor-pointer rounded-xl border border-dashed border-[var(--color-olive)] bg-[rgba(155,148,47,.05)] px-3.5 py-2.5 font-body text-sm" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; setValues((current) => ({ ...current, coverFile: file.name })); setCoverPreview(URL.createObjectURL(file)) }} /><span className="mt-1 block font-body text-xs text-[#8b8d86]">Tải JPG, PNG hoặc WebP. Không nhập URL.</span>{coverPreview && <img className="mt-3 h-32 w-24 rounded-xl object-cover" src={coverPreview} alt="Xem trước ảnh bìa" />}</label><div className="rounded-xl bg-[#f6f5ed] p-4 font-body text-sm text-[#62655f]">Thành tiền sẽ được tính tự động từ số lượng × đơn giá nhập. Tác giả, thể thức, dòng sách, thể loại và chủ đề sẽ chuyển thành lựa chọn từ dữ liệu chuẩn khi kết nối database.</div><div className="flex flex-col justify-end gap-3 border-t border-[#eeeae0] pt-5 sm:flex-row"><a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#dedbd0] px-5 font-body text-sm" href="/admin/books">Hủy</a><button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white" type="submit">Lưu sách</button></div></form></AdminSimpleCreateShell>
+}
+
+function AdminCategoryCreatePage() {
+  return <AdminSimpleCreateShell title="Thêm danh mục" backHref="/admin/books/categories" section="DANH MỤC" description="Tạo danh mục từ database, chọn danh mục cha và thứ tự hiển thị."><form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => event.preventDefault()}><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Tên danh mục<span className="ml-1 text-[var(--color-olive-dark)]">*</span></span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" required /></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Danh mục cha</span><select className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm"><option>Không có, cấp cao nhất</option><option>Fiction</option><option>Non-fiction</option></select></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Thứ tự</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" type="number" min="1" defaultValue="1" /></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Slug</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" /></label><label className="block sm:col-span-2"><span className="mb-1.5 block font-body text-sm font-medium">Mô tả</span><textarea className="min-h-28 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] p-3.5 font-body text-sm" /></label><div className="flex justify-end gap-3 border-t border-[#eeeae0] pt-5 sm:col-span-2"><a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#dedbd0] px-5 font-body text-sm" href="/admin/books/categories">Hủy</a><button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white" type="submit">Lưu danh mục</button></div></form></AdminSimpleCreateShell>
 }
 
 type AdminModuleConfig = { section: string; title: string; description: string; addLabel: string; columns: string[]; rows: string[][]; empty: string }
@@ -1824,7 +1840,50 @@ const adminAuthorRecords: AdminAuthorRecord[] = [
   { id: 'yukio-mishima', name: 'Yukio Mishima', slug: 'yukio-mishima', role: 'Author', books: 2, email: '—', status: 'Đang hoạt động', image: '/assets/news-instagram-04.jpg', bio: 'Nhà văn Nhật Bản với các tác phẩm giàu tính biểu tượng, kỷ luật hình thức và sức gợi văn hóa.' },
 ]
 
-function AdminAuthorsPage({ pathname }: { pathname: string }) {
+function AdminAuthorCreatePage({ pathname }: { pathname: string }) {
+  const [form, setForm] = useState<AdminAuthorForm>(emptyAdminAuthorForm)
+  const [saved, setSaved] = useState(false)
+  const [imagePreview, setImagePreview] = useState('')
+  const update = (key: keyof AdminAuthorForm, value: string) => setForm((current) => ({ ...current, [key]: value }))
+  return <AdminSimpleCreateShell title="Thêm tác giả" backHref="/admin/authors" section="NỘI DUNG" description="Nhập hồ sơ tác giả theo dữ liệu Linery đã chuẩn hóa từ Google Sheets.">
+    <form className="grid gap-5" onSubmit={(event) => { event.preventDefault(); setSaved(true) }}>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{adminAuthorFormFields.map((field) => <label className="block" key={field.key}><span className="mb-1.5 block font-body text-sm font-medium">{field.label}{field.required && <span className="ml-1 text-[var(--color-olive-dark)]">*</span>}</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" type={field.input ?? 'text'} required={field.required} value={form[field.key]} onChange={(event) => update(field.key, event.target.value)} />{field.help && <span className="mt-1 block font-body text-xs text-[#8b8d86]">{field.help}</span>}</label>)}</div>
+      <AdminRichTextEditor label="Tác phẩm tiêu biểu" value={form.representativeWorks} onChange={(value) => update('representativeWorks', value)} placeholder="Nhập các tác phẩm tiêu biểu..." />
+      <AdminRichTextEditor label="Giải thưởng / danh hiệu" value={form.awards} onChange={(value) => update('awards', value)} placeholder="Nhập giải thưởng, danh hiệu và ghi nhận..." />
+      <AdminRichTextEditor label="Giới thiệu tác giả" value={form.bio} onChange={(value) => update('bio', value)} placeholder="Nhập giới thiệu và đánh giá tác giả..." />
+      <AdminImageUpload label="Ảnh tác giả" preview={imagePreview} fileName={form.imageLink} onFileChange={(file) => { update('imageLink', file.name); setImagePreview(URL.createObjectURL(file)) }} onClear={() => { update('imageLink', ''); setImagePreview('') }} />
+      {saved && <p className="rounded-xl bg-[#f1f8f1] p-3 font-body text-sm text-[#39733e]" role="status">Đã lưu bản nháp tác giả. Khi kết nối backend, bản ghi sẽ được tạo trong danh mục tác giả.</p>}
+      <AdminFormActions cancelHref="/admin/authors" draftLabel="Lưu nháp" saveLabel="Lưu tác giả" />
+    </form>
+  </AdminSimpleCreateShell>
+}
+
+function AdminSimpleCreateShell({ title, section, description, backHref, children }: { title: string; section: string; description: string; backHref: string; children: ReactNode }) {
+  return <div className="admin-shell flex min-h-screen bg-[#f7f7f2] text-[var(--color-ink)]"><aside className="admin-sidebar fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-[#e5e2d7] bg-white lg:static"><div className="flex h-20 items-center border-b border-[#eeeae0] px-6"><a className="font-display text-lg font-semibold tracking-[.08em] text-[var(--color-ink)]" href="/#home">LINERY <span className="font-body text-xs font-normal tracking-[.18em] text-[var(--color-olive)]">QUẢN TRỊ</span></a></div><AdminManagementSidebar pathname={window.location.pathname} /></aside><div className="min-w-0 flex-1"><header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#e5e2d7] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8"><div><p className="font-body text-sm text-[#8b8d86]">Quản trị</p><h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1></div><a className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-olive)] font-display text-sm text-white" href={backHref} aria-label="Quay lại danh sách">K</a></header><main className="w-full p-4 sm:p-6 lg:p-8"><div className="mb-5 flex items-center gap-2 font-body text-sm text-[#8b8d86]"><a className="hover:text-[var(--color-olive-dark)]" href="/admin">Quản trị</a><i className="bi bi-chevron-right text-xs" aria-hidden="true" /><span>{section}</span><i className="bi bi-chevron-right text-xs" aria-hidden="true" /><span className="font-medium text-[var(--color-ink)]">{title}</span></div><section className="rounded-2xl border border-[#e6e2d7] bg-white p-5 shadow-[0_10px_30px_rgba(31,42,36,.04)] sm:p-7">{children}</section></main></div></div>
+}
+
+function AdminRichTextEditor({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  const editorRef = useRef<HTMLDivElement | null>(null)
+  const runCommand = (command: string, commandValue?: string) => {
+    editorRef.current?.focus()
+    document.execCommand(command, false, commandValue)
+    if (editorRef.current) onChange(editorRef.current.innerHTML)
+  }
+  return <div className="sm:col-span-2 lg:col-span-3"><span className="mb-1.5 block font-body text-sm font-medium">{label}</span><div className="overflow-hidden rounded-xl border border-[#dedbd0] bg-white focus-within:border-[var(--color-olive)] focus-within:ring-2 focus-within:ring-[rgba(155,148,47,.14)]"><div className="flex flex-wrap gap-1 border-b border-[#eeeae0] bg-[#fcfbf7] p-2" role="toolbar" aria-label={`Thanh công cụ ${label}`}><button className="inline-flex h-8 w-8 items-center justify-center rounded-lg font-body text-sm hover:bg-[#f0eee5]" type="button" aria-label="In đậm" onClick={() => runCommand('bold')}><i className="bi bi-type-bold" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-lg font-body text-sm hover:bg-[#f0eee5]" type="button" aria-label="In nghiêng" onClick={() => runCommand('italic')}><i className="bi bi-type-italic" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-lg font-body text-sm hover:bg-[#f0eee5]" type="button" aria-label="Danh sách" onClick={() => runCommand('insertUnorderedList')}><i className="bi bi-list-ul" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-lg font-body text-sm hover:bg-[#f0eee5]" type="button" aria-label="Danh sách đánh số" onClick={() => runCommand('insertOrderedList')}><i className="bi bi-list-ol" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-lg font-body text-sm hover:bg-[#f0eee5]" type="button" aria-label="Trích dẫn" onClick={() => runCommand('formatBlock', 'blockquote')}><i className="bi bi-chat-square-quote" aria-hidden="true" /></button><button className="inline-flex h-8 w-8 items-center justify-center rounded-lg font-body text-sm hover:bg-[#f0eee5]" type="button" aria-label="Xóa định dạng" onClick={() => runCommand('removeFormat')}><i className="bi bi-eraser" aria-hidden="true" /></button></div><div ref={editorRef} className="min-h-40 p-4 font-body text-sm leading-7 outline-none" contentEditable suppressContentEditableWarning data-placeholder={placeholder} onInput={(event) => onChange(event.currentTarget.innerHTML)} role="textbox" aria-multiline="true" aria-label={label} /></div><span className="mt-1 block font-body text-xs text-[#8b8d86]">Có thể định dạng chữ đậm, nghiêng, danh sách và trích dẫn.</span></div>
+}
+
+function AdminImageUpload({ label, preview, fileName, onFileChange, onClear }: { label: string; preview: string; fileName?: string; onFileChange: (file: File) => void; onClear: () => void }) {
+  const inputId = `admin-image-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+  const accept = 'image/png,image/jpeg,image/webp'
+  const handleFiles = (files: FileList | null) => { const file = files?.[0]; if (file && file.type.startsWith('image/')) onFileChange(file) }
+  return <div className="max-w-xl"><span className="mb-1.5 block font-body text-sm font-medium">{label}</span><input id={inputId} className="sr-only" type="file" accept={accept} onChange={(event) => handleFiles(event.target.files)} /><label htmlFor={inputId} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); handleFiles(event.dataTransfer.files) }} className={`group flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-7 text-center transition ${preview ? 'border-[var(--color-olive)] bg-[rgba(155,148,47,.05)]' : 'border-[#d8d5c8] bg-[#fcfbf7] hover:border-[var(--color-olive)] hover:bg-[rgba(155,148,47,.05)]'}`}><span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl text-[var(--color-olive)] shadow-sm ring-1 ring-[#e6e2d7]"><i className={`bi ${preview ? 'bi-check2' : 'bi-cloud-arrow-up'}`} aria-hidden="true" /></span><span className="mt-3 font-body text-sm font-semibold text-[var(--color-ink)]">{preview ? 'Đã chọn ảnh' : 'Kéo thả ảnh vào đây'}</span><span className="mt-1 font-body text-xs text-[#8b8d86]">hoặc bấm để chọn từ máy tính</span><span className="mt-3 rounded-lg border border-[#dedbd0] bg-white px-3 py-1.5 font-body text-xs font-medium text-[#62655f] group-hover:border-[var(--color-olive)]">Chọn ảnh</span></label>{preview && <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#e6e2d7] bg-white p-3"><img className="h-16 w-14 rounded-lg object-cover" src={preview} alt={`Xem trước ${label.toLowerCase()}`} /><div className="min-w-0 flex-1"><p className="truncate font-body text-sm font-medium">{fileName || 'Ảnh đã chọn'}</p><p className="mt-0.5 font-body text-xs text-[#8b8d86]">JPG, PNG hoặc WebP</p></div><button className="inline-flex h-9 items-center justify-center rounded-lg border border-[#dedbd0] px-3 font-body text-xs font-medium text-[#62655f] hover:border-[#a33d32] hover:text-[#a33d32]" type="button" onClick={onClear}>Xóa ảnh</button></div>}<p className="mt-2 font-body text-xs text-[#8b8d86]">Tối đa 5MB · Không nhập URL</p></div>
+}
+
+function AdminFormActions({ cancelHref, cancelLabel = 'Hủy', draftLabel, saveLabel }: { cancelHref: string; cancelLabel?: string; draftLabel?: string; saveLabel: string }) {
+  return <div className="sticky bottom-0 z-20 -mx-5 mt-7 border-t border-[#dedbd0] bg-white/95 px-5 py-4 shadow-[0_-12px_28px_rgba(31,42,36,.08)] backdrop-blur sm:-mx-7 sm:px-7"><div className="flex flex-col-reverse justify-end gap-3 sm:flex-row sm:items-center"><a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#dedbd0] px-5 font-body text-sm text-[var(--color-ink)] hover:bg-[#f6f5ed]" href={cancelHref}>{cancelLabel}</a>{draftLabel && <button className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--color-olive)] px-5 font-body text-sm font-medium text-[var(--color-olive-dark)] hover:bg-[rgba(155,148,47,.08)]" type="button">{draftLabel}</button>}<button className="admin-primary-action inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white hover:bg-[var(--color-olive-dark)]" type="submit">{saveLabel}</button></div></div>
+}
+
+function AdminAuthorsLegacyPage({ pathname }: { pathname: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [view, setView] = useState<'cards' | 'table' | 'detail'>('cards')
   const [query, setQuery] = useState('')
@@ -1899,7 +1958,7 @@ function AdminModulePageV2({ pathname, config }: { pathname: string; config: Adm
 }
 
 
-function AdminBooksPage({ managementView }: { managementView: BookManagementView }) {
+function AdminBooksLegacyPage({ managementView }: { managementView: BookManagementView }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [formOpen, setFormOpen] = useState(false)
@@ -2016,11 +2075,131 @@ function AdminBooksPage({ managementView }: { managementView: BookManagementView
   </div>
 }
 
+const adminSelectOptions = {
+  authors: ['Edward W. Said', 'Toni Morrison', 'Yukio Mishima', 'Antoine de Saint-Exupéry', 'Amy Tan'],
+  formats: ['Paperback', 'Hardcover', 'Digital', 'Audiobook'],
+  lines: ['Picador', 'Penguin UK', 'Penguin US', 'NYRB'],
+  categories: ['Fiction', 'Novels', 'Short stories', 'Poetry & Drama', 'Non-fiction', 'Essays', 'Research & Studies', 'Memoir & Biography'],
+  topics: ['Literary fiction', 'Politics', 'Philosophy', 'History', 'Art & Design', 'Culture', 'Biography'],
+}
+
+function AdminSelect2({ label, value, options, onChange, placeholder, multiple = false }: { label: string; value: string | string[]; options: string[]; onChange: (value: string | string[]) => void; placeholder: string; multiple?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const selected = multiple ? (value as string[]) : (value as string ? [value as string] : [])
+  const filtered = options.filter((option) => option.toLowerCase().includes(query.trim().toLowerCase()))
+  const choose = (option: string) => {
+    if (multiple) {
+      const next = selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option]
+      onChange(next)
+    } else {
+      onChange(option)
+      setQuery('')
+      setOpen(false)
+    }
+  }
+  return <div className="relative">
+    <label className="block"><span className="mb-1.5 block font-body text-sm font-medium">{label}</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm outline-none transition focus:border-[var(--color-olive)] focus:ring-2 focus:ring-[rgba(155,148,47,.14)]" value={query} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} placeholder={selected.length ? selected.join(', ') : placeholder} aria-expanded={open} aria-autocomplete="list" /></label>
+    {selected.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{selected.map((item) => <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(155,148,47,.12)] px-2.5 py-1 font-body text-xs text-[var(--color-olive-dark)]" key={item}>{item}<button type="button" aria-label={`Bỏ ${item}`} onClick={() => choose(item)}><i className="bi bi-x" aria-hidden="true" /></button></span>)}</div>}
+    {open && <><button className="fixed inset-0 z-20 cursor-default" type="button" aria-label="Đóng lựa chọn" onClick={() => setOpen(false)} /><div className="absolute z-30 mt-2 max-h-56 w-full overflow-auto rounded-xl border border-[#dedbd0] bg-white p-1.5 shadow-lg">{filtered.length ? filtered.map((option) => <button className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left font-body text-sm hover:bg-[#f5f3ec] ${selected.includes(option) ? 'bg-[rgba(155,148,47,.1)] font-semibold text-[var(--color-olive-dark)]' : ''}`} type="button" key={option} onClick={() => choose(option)}>{option}{selected.includes(option) && <i className="bi bi-check2" aria-hidden="true" />}</button>) : <p className="px-3 py-2 font-body text-sm text-[#8b8d86]">Không tìm thấy dữ liệu đã tạo.</p>}</div></>}
+  </div>
+}
+
+function AdminBookCreatePageV2() {
+  const [values, setValues] = useState({ isbn: '', title: '', author: '', series: '', coverPriceUsd: '', quantity: '', unitPrice: '', salePrice: '', exchangeRate: '', format: '', line: '', genre: '', topic: '', link: '', goodreads: '', description: '' })
+  const [coverPreview, setCoverPreview] = useState('')
+  const [coverFileName, setCoverFileName] = useState('')
+  const setValue = (key: keyof typeof values, value: string) => setValues((current) => ({ ...current, [key]: value }))
+  const textFields: Array<[keyof typeof values, string, string]> = [['isbn', 'ISBN', 'text'], ['title', 'Tên tác phẩm', 'text'], ['series', 'Series', 'text'], ['coverPriceUsd', 'Giá bìa (USD)', 'number'], ['quantity', 'Số lượng (quyển)', 'number'], ['unitPrice', 'Đơn giá nhập (VNĐ)', 'number'], ['salePrice', 'Giá bán (VNĐ)', 'number'], ['exchangeRate', 'Tỷ giá', 'number'], ['link', 'Link nguồn', 'url'], ['goodreads', 'Đánh giá Goodreads', 'text']]
+  const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault() }
+  return <AdminSimpleCreateShell title="Thêm sách" backHref="/admin/books" section="SÁCH" description="Tạo sách từ các trường đã chuẩn hóa theo bốn sheet Picador, Penguin UK, Penguin US và NYRB.">
+    <form className="grid gap-5" onSubmit={submit}>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{textFields.map(([key, label, type]) => <label className="block" key={key}><span className="mb-1.5 block font-body text-sm font-medium">{label}{key === 'title' && <span className="ml-1 text-[var(--color-olive-dark)]">*</span>}</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" type={type} required={key === 'title'} value={values[key]} onChange={(event) => setValue(key, event.target.value)} /></label>)}</div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><AdminSelect2 label="Tác giả" value={values.author} options={adminSelectOptions.authors} onChange={(value) => setValue('author', value as string)} placeholder="Tìm và chọn tác giả đã tạo" /><AdminSelect2 label="Thể thức" value={values.format} options={adminSelectOptions.formats} onChange={(value) => setValue('format', value as string)} placeholder="Tìm và chọn thể thức" /><AdminSelect2 label="Dòng sách" value={values.line} options={adminSelectOptions.lines} onChange={(value) => setValue('line', value as string)} placeholder="Tìm và chọn dòng sách" /><AdminSelect2 label="Thể loại" value={values.genre} options={adminSelectOptions.categories} onChange={(value) => setValue('genre', value as string)} placeholder="Tìm và chọn thể loại" /><AdminSelect2 label="Chủ đề" value={values.topic} options={adminSelectOptions.topics} onChange={(value) => setValue('topic', value as string)} placeholder="Tìm và chọn chủ đề" /></div>
+      <AdminRichTextEditor label="Mô tả sách" value={values.description} onChange={(value) => setValue('description', value)} placeholder="Nhập mô tả, nội dung giới thiệu và ghi chú biên tập cho sách..." />
+      <AdminImageUpload label="Ảnh bìa" preview={coverPreview} fileName={coverFileName} onFileChange={(file) => { setCoverFileName(file.name); setCoverPreview(URL.createObjectURL(file)) }} onClear={() => { setCoverFileName(''); setCoverPreview('') }} />
+      <AdminFormActions cancelHref="/admin/books" draftLabel="Lưu nháp" saveLabel="Lưu sách" />
+    </form>
+  </AdminSimpleCreateShell>
+}
+
+function AdminCategoryCreatePageV2() {
+  const [parent, setParent] = useState('')
+  return <AdminSimpleCreateShell title="Thêm danh mục" backHref="/admin/books/categories" section="DANH MỤC" description="Tạo danh mục trong database để các màn tạo sách có thể tìm và chọn lại."><form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => event.preventDefault()}><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Tên danh mục<span className="ml-1 text-[var(--color-olive-dark)]">*</span></span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" required /></label><AdminSelect2 label="Danh mục cha" value={parent} options={['Fiction', 'Non-fiction']} onChange={(value) => setParent(value as string)} placeholder="Tìm và chọn danh mục cha" /><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Thứ tự</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" type="number" min="1" defaultValue="1" /></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Slug</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" /></label><label className="block sm:col-span-2"><span className="mb-1.5 block font-body text-sm font-medium">Mô tả</span><textarea className="min-h-28 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] p-3.5 font-body text-sm" /></label><AdminFormActions cancelHref="/admin/books/categories" saveLabel="Lưu danh mục" /></form></AdminSimpleCreateShell>
+}
+
+function AdminListShell({ title, section, description, createHref, createLabel, children }: { title: string; section: string; description: string; createHref: string; createLabel: string; children: ReactNode }) {
+  return <div className="admin-shell flex min-h-screen bg-[#f7f7f2] text-[var(--color-ink)]"><aside className="admin-sidebar fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-[#e5e2d7] bg-white lg:static"><div className="flex h-20 items-center border-b border-[#eeeae0] px-6"><a className="font-display text-lg font-semibold tracking-[.08em]" href="/#home">LINERY <span className="font-body text-xs font-normal tracking-[.18em] text-[var(--color-olive)]">QUẢN TRỊ</span></a></div><AdminManagementSidebar pathname={window.location.pathname} /></aside><div className="min-w-0 flex-1"><header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#e5e2d7] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8"><div><p className="font-body text-sm text-[#8b8d86]">Quản trị</p><h1 className="font-display text-xl font-semibold sm:text-2xl">{title}</h1></div><a className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-olive)] font-display text-sm text-white" href={createHref} aria-label={createLabel}>K</a></header><main className="w-full p-4 sm:p-6 lg:p-8"><div className="mb-5 flex items-center gap-2 font-body text-sm text-[#8b8d86]"><a className="hover:text-[var(--color-olive-dark)]" href="/admin">Quản trị</a><i className="bi bi-chevron-right text-xs" aria-hidden="true" /><span>{section}</span><i className="bi bi-chevron-right text-xs" aria-hidden="true" /><span className="font-medium text-[var(--color-ink)]">{title}</span></div><div className="mb-5 flex justify-end"><a className="admin-primary-action inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white hover:bg-[var(--color-olive-dark)]" href={createHref}><i className="bi bi-plus-lg" aria-hidden="true" />{createLabel}</a></div>{children}</main></div></div>
+}
+
+function AdminAuthorsPageV2() {
+  const [query, setQuery] = useState('')
+  const authors = adminAuthorRecords.filter((author) => author.name.toLowerCase().includes(query.toLowerCase()))
+  return <AdminListShell title="Quản lý tác giả" section="NỘI DUNG" description="Danh sách tác giả là màn riêng. Bấm Thêm tác giả để mở đúng màn tạo mới." createHref="/admin/authors/new" createLabel="Thêm tác giả"><section className="overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white"><div className="flex flex-col justify-between gap-3 border-b border-[#eeeae0] p-5 sm:flex-row sm:items-center"><div><h3 className="font-display text-lg font-semibold">Danh sách tác giả</h3><p className="mt-1 font-body text-sm text-[#74776f]">{authors.length} tác giả</p></div><input className="min-h-10 rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm sm:w-80" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên tác giả" /></div><div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left"><thead className="bg-[#fcfbf7]"><tr>{['Tên tác giả', 'Slug', 'Số sách', 'Trạng thái', 'Thao tác'].map((heading) => <th className="px-4 py-3 font-body text-sm font-semibold" key={heading}>{heading}</th>)}</tr></thead><tbody>{authors.map((author) => <tr className="border-t border-[#eeeae0]" key={author.id}><td className="px-4 py-3 font-body text-sm font-medium">{author.name}</td><td className="px-4 py-3 font-body text-sm text-[#74776f]">{author.slug}</td><td className="px-4 py-3 font-body text-sm">{author.books}</td><td className="px-4 py-3 font-body text-sm">{author.status}</td><td className="px-4 py-3 text-right"><a className="font-body text-sm text-[var(--color-olive-dark)]" href={`/admin/authors/${author.id}`}>Xem / sửa</a></td></tr>)}</tbody></table></div></section></AdminListShell>
+}
+
+const adminCategoryRecords: AdminLookupItem[] = [{ id: 'fiction', name: 'Fiction', parentId: null }, { id: 'novels', name: 'Novels', parentId: 'fiction' }, { id: 'short-stories', name: 'Short stories', parentId: 'fiction' }, { id: 'poetry-drama', name: 'Poetry & Drama', parentId: 'fiction' }, { id: 'non-fiction', name: 'Non-fiction', parentId: null }, { id: 'essays', name: 'Essays', parentId: 'non-fiction' }, { id: 'research', name: 'Research & Studies', parentId: 'non-fiction' }, { id: 'memoir', name: 'Memoir & Biography', parentId: 'non-fiction' }]
+
+function AdminCategoriesPageV2() {
+  const numberFor = (id: string): string => { const item = adminCategoryRecords.find((entry) => entry.id === id); if (!item) return ''; const siblings = adminCategoryRecords.filter((entry) => entry.parentId === item.parentId); const position = siblings.findIndex((entry) => entry.id === id) + 1; return item.parentId ? `${numberFor(item.parentId).replace(/\.$/, '')}.${position}` : `${position}.` }
+  return <AdminListShell title="Danh mục sách" section="SÁCH" description="Danh mục được quản lý trong database; sách chỉ chọn các danh mục đã tạo. Thứ tự hiển thị hỗ trợ cấp 1, 1.1, 1.2 theo quan hệ cha–con." createHref="/admin/books/categories/new" createLabel="Thêm danh mục"><section className="overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white"><div className="border-b border-[#eeeae0] p-5"><h3 className="font-display text-lg font-semibold">Danh sách danh mục</h3><p className="mt-1 font-body text-sm text-[#74776f]">{adminCategoryRecords.length} danh mục đã tạo</p></div><div className="overflow-x-auto"><table className="min-w-[720px] w-full text-left"><thead className="bg-[#fcfbf7]"><tr><th className="px-4 py-3 font-body text-sm font-semibold">Thứ tự</th><th className="px-4 py-3 font-body text-sm font-semibold">Tên danh mục</th><th className="px-4 py-3 font-body text-sm font-semibold">Cấp cha</th><th className="px-4 py-3 text-right font-body text-sm font-semibold">Thao tác</th></tr></thead><tbody>{adminCategoryRecords.map((category) => <tr className="border-t border-[#eeeae0]" key={category.id}><td className="px-4 py-3 font-body text-sm font-semibold text-[var(--color-olive-dark)]">{numberFor(category.id)}</td><td className={`px-4 py-3 font-body text-sm ${category.parentId ? 'pl-10' : ''}`}>{category.name}</td><td className="px-4 py-3 font-body text-sm text-[#74776f]">{category.parentId ? adminCategoryRecords.find((item) => item.id === category.parentId)?.name : 'Cấp cao nhất'}</td><td className="px-4 py-3 text-right"><a className="font-body text-sm text-[var(--color-olive-dark)]" href={`/admin/books/categories/${category.id}`}>Xem / sửa</a></td></tr>)}</tbody></table></div></section></AdminListShell>
+}
+
+function AdminCategoriesPageV3() {
+  const [categories, setCategories] = useState<AdminLookupItem[]>(adminCategoryRecords)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'inside' | 'after' } | null>(null)
+  const getDepth = (id: string): number => { const item = categories.find((entry) => entry.id === id); return item?.parentId ? getDepth(item.parentId) + 1 : 0 }
+  const numberFor = (id: string): string => { const item = categories.find((entry) => entry.id === id); if (!item) return ''; const siblings = categories.filter((entry) => entry.parentId === item.parentId); const position = siblings.findIndex((entry) => entry.id === id) + 1; return item.parentId ? `${numberFor(item.parentId).replace(/\.$/, '')}.${position}` : `${position}.` }
+  const moveCategory = (targetId: string) => {
+    if (!draggedId || !dropTarget || draggedId === targetId) return
+    setCategories((current) => {
+      const target = current.find((entry) => entry.id === targetId)
+      if (!target) return current
+      const descendants = new Set<string>()
+      const collect = (parentId: string) => current.filter((entry) => entry.parentId === parentId).forEach((entry) => { descendants.add(entry.id); collect(entry.id) })
+      collect(draggedId)
+      if (descendants.has(targetId)) return current
+      const movingIds = new Set([draggedId, ...descendants])
+      const nextParentId = dropTarget.position === 'inside' ? target.id : target.parentId
+      const moving = current.filter((entry) => movingIds.has(entry.id)).map((entry) => entry.id === draggedId ? { ...entry, parentId: nextParentId } : entry)
+      const remaining = current.filter((entry) => !movingIds.has(entry.id))
+      const targetIndex = remaining.findIndex((entry) => entry.id === targetId)
+      if (targetIndex < 0) return current
+      const insertIndex = dropTarget.position === 'before' ? targetIndex : targetIndex + 1
+      remaining.splice(insertIndex, 0, ...moving)
+      return remaining
+    })
+    setDraggedId(null)
+    setDropTarget(null)
+  }
+  return <AdminListShell title="Danh mục sách" section="SÁCH" description="Kéo thả danh mục để đổi thứ tự hoặc thả vào một danh mục khác để chuyển thành cấp con. Ví dụ: 1 → 1.1 → 1.1.1." createHref="/admin/books/categories/new" createLabel="Thêm danh mục"><section className="overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white"><div className="flex flex-col justify-between gap-3 border-b border-[#eeeae0] p-5 sm:flex-row sm:items-center"><div><h3 className="font-display text-lg font-semibold">Danh sách danh mục</h3><p className="mt-1 font-body text-sm text-[#74776f]">Kéo biểu tượng ở đầu dòng để sắp xếp hoặc phân cấp.</p></div><span className="inline-flex min-h-9 items-center rounded-lg bg-[#f6f5ed] px-3 font-body text-xs text-[#62655f]">{categories.length} danh mục</span></div><div className="divide-y divide-[#eeeae0]">{categories.map((category) => { const depth = getDepth(category.id); const targetPosition = dropTarget?.id === category.id ? dropTarget.position : null; return <div className={`flex items-center gap-3 px-5 py-3 transition ${targetPosition === 'inside' ? 'bg-[rgba(155,148,47,.12)]' : ''} ${targetPosition === 'before' ? 'border-t-2 border-[var(--color-olive)]' : ''} ${targetPosition === 'after' ? 'border-b-2 border-[var(--color-olive)]' : ''}`} key={category.id} draggable onDragStart={() => setDraggedId(category.id)} onDragEnd={() => { setDraggedId(null); setDropTarget(null) }} onDragOver={(event) => { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); const ratio = (event.clientY - rect.top) / rect.height; setDropTarget({ id: category.id, position: ratio < 0.28 ? 'before' : ratio > 0.72 ? 'after' : 'inside' }) }} onDrop={(event) => { event.preventDefault(); moveCategory(category.id) }}><button className="inline-flex h-9 w-9 flex-none cursor-grab items-center justify-center rounded-lg text-[#8b8d86] hover:bg-[#f5f3ec] active:cursor-grabbing" type="button" aria-label={`Kéo ${category.name}`}><i className="bi bi-grip-vertical" aria-hidden="true" /></button><span className="w-12 flex-none font-body text-sm font-semibold text-[var(--color-olive-dark)]">{numberFor(category.id)}</span><div className={`min-w-0 flex-1 font-body text-sm ${depth > 0 ? 'pl-6' : ''}`}><p className="font-medium">{category.name}</p><p className="mt-0.5 text-xs text-[#8b8d86]">{category.parentId ? `Con của ${categories.find((entry) => entry.id === category.parentId)?.name}` : 'Cấp cao nhất'}</p></div><span className="hidden rounded-full bg-[#f6f5ed] px-2.5 py-1 font-body text-xs text-[#74776f] sm:inline-flex">{targetPosition === 'inside' ? 'Thả để làm cấp con' : 'Kéo để sắp xếp'}</span><a className="font-body text-sm text-[var(--color-olive-dark)]" href={`/admin/books/categories/${category.id}`}>Xem / sửa</a></div> })}</div></section></AdminListShell>
+}
+
+function AdminBooksPageV2({ managementView }: { managementView: BookManagementView }) {
+  if (managementView === 'categories') return <AdminCategoriesPageV3 />
+  return <AdminListShell title="Quản lý sách" section="SÁCH" description="Danh sách sách là màn riêng. Bấm Thêm sách để mở màn tạo mới; các trường quan hệ sẽ chọn từ dữ liệu chuẩn đã tạo." createHref="/admin/books/new" createLabel="Thêm sách"><section className="rounded-2xl border border-[#e6e2d7] bg-white p-8 text-center"><i className="bi bi-book text-3xl text-[var(--color-olive)]" aria-hidden="true" /><h3 className="mt-3 font-display text-lg font-semibold">Chưa có sách trong danh sách</h3><p className="mx-auto mt-2 max-w-lg font-body text-sm leading-6 text-[#74776f]">Thêm sách từ màn tạo mới hoặc nhập Excel. Tác giả, thể thức, dòng sách, thể loại và chủ đề sẽ được chọn bằng ô tìm kiếm thay vì nhập URL hay tên tự do.</p><a className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--color-olive)] px-5 font-body text-sm font-medium text-white" href="/admin/books/new">Mở màn tạo sách</a></section></AdminListShell>
+}
+
+function AdminNewsPageV2() {
+  return <AdminListShell title="Quản lý tin tức" section="NỘI DUNG" description="Danh sách tin tức là màn riêng; nội dung chi tiết được nhập bằng trình soạn thảo ở màn tạo mới." createHref="/admin/news/new" createLabel="Tạo bài viết"><section className="overflow-hidden rounded-2xl border border-[#e6e2d7] bg-white"><div className="border-b border-[#eeeae0] p-5"><h3 className="font-display text-lg font-semibold">Danh sách bài viết</h3><p className="mt-1 font-body text-sm text-[#74776f]">2 bản nháp mẫu</p></div><div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left"><thead className="bg-[#fcfbf7]"><tr>{['Tiêu đề', 'Slug', 'Ngày xuất bản', 'Trạng thái', 'Thao tác'].map((heading) => <th className="px-4 py-3 font-body text-sm font-semibold" key={heading}>{heading}</th>)}</tr></thead><tbody>{[['Toni Morrison: memory and the past', 'toni-morrison-memory-and-the-past', '—', 'Bản nháp'], ['Books about Women', 'books-about-women', '—', 'Bản nháp']].map((row) => <tr className="border-t border-[#eeeae0]" key={row[1]}>{row.map((value) => <td className="px-4 py-3 font-body text-sm" key={value}>{value}</td>)}<td className="px-4 py-3 text-right"><a className="font-body text-sm text-[var(--color-olive-dark)]" href="/admin/news/new">Xem / sửa</a></td></tr>)}</tbody></table></div></section></AdminListShell>
+}
+
+function AdminNewsCreatePageV2() {
+  const [content, setContent] = useState('')
+  return <AdminSimpleCreateShell title="Tạo bài viết" backHref="/admin/news" section="NỘI DUNG" description="Soạn nội dung tin tức bằng trình soạn thảo rich text, sau đó lưu thành bản nháp hoặc xuất bản khi kết nối backend."><form className="grid gap-5" onSubmit={(event) => event.preventDefault()}><div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Tiêu đề<span className="ml-1 text-[var(--color-olive-dark)]">*</span></span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" required /></label><label className="block"><span className="mb-1.5 block font-body text-sm font-medium">Slug</span><input className="min-h-11 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] px-3.5 font-body text-sm" /></label><label className="block sm:col-span-2"><span className="mb-1.5 block font-body text-sm font-medium">Tóm tắt</span><textarea className="min-h-24 w-full rounded-xl border border-[#dedbd0] bg-[#fcfbf7] p-3.5 font-body text-sm" /></label></div><AdminRichTextEditor label="Nội dung bài viết" value={content} onChange={setContent} placeholder="Nhập nội dung tin tức..." /><AdminFormActions cancelHref="/admin/news" draftLabel="Lưu nháp" saveLabel="Lưu bài viết" /></form></AdminSimpleCreateShell>
+}
+
 function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  if (window.location.pathname.startsWith('/admin/books')) return <AdminBooksPage managementView={getAdminBookViewFromPath(window.location.pathname)} />
-  if (window.location.pathname === '/admin/authors') return <AdminAuthorsPage pathname={window.location.pathname} />
+  if (window.location.pathname === '/admin/books/new') return <AdminBookCreatePageV2 />
+  if (window.location.pathname === '/admin/books/categories/new') return <AdminCategoryCreatePageV2 />
+  if (window.location.pathname.startsWith('/admin/books')) return <AdminBooksPageV2 managementView={getAdminBookViewFromPath(window.location.pathname)} />
+  if (window.location.pathname === '/admin/authors/new') return <AdminAuthorCreatePage pathname={window.location.pathname} />
+  if (window.location.pathname === '/admin/authors') return <AdminAuthorsPageV2 />
+  if (window.location.pathname === '/admin/news/new') return <AdminNewsCreatePageV2 />
+  if (window.location.pathname === '/admin/news') return <AdminNewsPageV2 />
   const moduleConfig = adminModuleConfigs[window.location.pathname]
   if (moduleConfig) return <AdminModulePageV2 pathname={window.location.pathname} config={moduleConfig} />
 
