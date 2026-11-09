@@ -21,11 +21,19 @@ body { margin: 0; min-width: 320px; background: var(--color-olive); }
 .admin-shell, .admin-shell .font-display, .admin-shell .font-body { font-family: var(--font-admin); }
 .admin-shell { --admin-body-size: 14px; font-size: var(--admin-body-size); line-height: 1.5; }
 .admin-shell button, .admin-shell a { font-size: var(--admin-body-size); line-height: 1; }
+.admin-shell button.font-display.text-xl { font-size: 16px; font-weight: 700; line-height: 1.3; }
 .admin-shell .admin-primary-action { color: #fff; font-size: var(--admin-body-size); line-height: 1; }
 .admin-shell .admin-primary-action:hover, .admin-shell .admin-primary-action:focus-visible { color: #fff; background: var(--color-olive-dark); }
 .admin-shell .admin-primary-icon { color: #fff; }
 .admin-shell [class~="text-[10px]"], .admin-shell [class~="text-[11px]"], .admin-shell [class~="text-xs"] { font-size: 12px; line-height: 1.4; }
 .admin-shell .admin-sidebar { width: 240px; }
+.admin-shell .admin-mobile-drawer { transform: translateX(-100%); }
+.admin-shell .admin-mobile-drawer.is-open { transform: translateX(0); }
+@media (min-width: 1024px) { .admin-shell .admin-mobile-drawer { transform: none; } }
+@media (max-width: 639px) {
+  .admin-shell article > .flex.items-center.justify-between.border-b { flex-direction: column; align-items: stretch; gap: 16px; }
+  .admin-shell article > .flex.items-center.justify-between.border-b > div:last-child { width: 100%; justify-content: flex-end; }
+}
 .admin-shell .admin-sidebar > div:first-child { height: 60px; min-height: 60px; }
 .admin-shell .admin-sidebar nav { padding: 12px; }
 .admin-shell .admin-sidebar nav a, .admin-shell .admin-sidebar > div a { border-radius: 8px; padding: 8px 10px; }
