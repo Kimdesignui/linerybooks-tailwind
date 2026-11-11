@@ -27,9 +27,48 @@ body { margin: 0; min-width: 320px; background: var(--color-olive); }
 .admin-shell .admin-primary-icon { color: #fff; }
 .admin-shell [class~="text-[10px]"], .admin-shell [class~="text-[11px]"], .admin-shell [class~="text-xs"] { font-size: 12px; line-height: 1.4; }
 .admin-shell .admin-sidebar { width: 240px; }
+.admin-shell .admin-sidebar nav > p:first-child { display: none; }
+.admin-sales-dashboard {
+  --dashboard-blue: #1477df;
+  --dashboard-blue-soft: #eef6ff;
+  --dashboard-green: #1fa85b;
+  --dashboard-green-soft: #e9f8ef;
+  --dashboard-red: #df3e3e;
+  --dashboard-red-soft: #fff0ee;
+  --dashboard-orange: #f39a25;
+  --dashboard-orange-soft: #fff5e6;
+}
+.admin-sales-dashboard .bg-\[\#1477df\] { background-color: var(--dashboard-blue); }
+.admin-sales-dashboard .text-\[\#2680d9\] { color: var(--dashboard-blue); }
+.admin-sales-dashboard .bg-\[\#eef6ff\] { background-color: var(--dashboard-blue-soft); }
+.admin-shell table thead { background-color: #f4f8fd; }
+.admin-shell table tbody tr:hover { background-color: #f8fbff; }
+.admin-shell a.text-\[var\(--color-olive-dark\)\]:hover { color: var(--dashboard-blue); }
+.admin-shell input:focus-visible, .admin-shell select:focus-visible, .admin-shell textarea:focus-visible { border-color: var(--dashboard-blue); outline: 2px solid rgba(20,119,223,.16); outline-offset: 1px; }
+body[data-admin-module="/admin/reports"] .admin-shell main > section.grid > article,
+body[data-admin-module="/admin/reports"] .admin-shell main > div.grid > section,
+body[data-admin-module="/admin/reports"] .admin-shell main > section:last-child { border-radius: 16px; box-shadow: 0 10px 30px rgba(31,42,36,.04); }
+body[data-admin-module="/admin/reports"] .admin-shell main > section.grid > article:nth-child(1) > div > span { background: #eef6ff; color: #1477df; }
+body[data-admin-module="/admin/reports"] .admin-shell main > section.grid > article:nth-child(2) > div > span { background: #e9f8ef; color: #1fa85b; }
+body[data-admin-module="/admin/reports"] .admin-shell main > section.grid > article:nth-child(3) > div > span { background: #fff5e6; color: #f39a25; }
+body[data-admin-module="/admin/reports"] .admin-shell main > section.grid > article:nth-child(4) > div > span { background: #fff0ee; color: #df3e3e; }
+body[data-admin-module="/admin/reports"] .admin-shell main > div.grid .bg-\[var\(--color-olive\)\] { background-color: #1477df; }
+body[data-admin-module="/admin/reports"] .admin-shell main > div.grid .bg-\[\#f0efe8\] { background-color: #eef1f5; }
+body[data-admin-module="/admin/reports"] .admin-shell main > section:last-child .bg-\[var\(--color-olive\)\] { background-color: #1477df; }
+@media (min-width: 640px) {
+  body[data-admin-module="/admin/reports"] .admin-shell main { position: relative; }
+  body[data-admin-module="/admin/reports"] .admin-shell main > .mb-5 { padding-right: 170px; }
+  body[data-admin-module="/admin/reports"] .admin-shell main > .mb-5 > button { position: absolute; top: 4px; right: 16px; }
+}
 .admin-shell .admin-mobile-drawer { transform: translateX(-100%); }
 .admin-shell .admin-mobile-drawer.is-open { transform: translateX(0); }
 @media (min-width: 1024px) { .admin-shell .admin-mobile-drawer { transform: none; } }
+@media (max-width: 1023px) { .admin-shell .admin-sidebar-collapse { display: none; } }
+@media (min-width: 1024px) {
+  .admin-sales-dashboard main > .grid { grid-template-columns: minmax(0, 1fr) 300px; }
+  .admin-sales-dashboard main > .grid > aside { position: sticky; top: 6rem; align-self: start; }
+}
+@media (min-width: 1280px) { .admin-sales-dashboard main > .grid { grid-template-columns: minmax(0, 1fr) 340px; } }
 @media (max-width: 639px) {
   .admin-shell article > .flex.items-center.justify-between.border-b { flex-direction: column; align-items: stretch; gap: 16px; }
   .admin-shell article > .flex.items-center.justify-between.border-b > div:last-child { width: 100%; justify-content: flex-end; }
