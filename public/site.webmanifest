@@ -6,5 +6,12 @@
   "display": "standalone",
   "background_color": "#9b942f",
   "theme_color": "#9b942f",
-  "icons": []
+  "icons": [
+    {
+      "src": "/assets/linerybooks-logo-pixel-bg.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
